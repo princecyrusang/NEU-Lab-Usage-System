@@ -60,14 +60,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        if (!firebaseUser.email?.endsWith("@neu.edu.ph")) {
+        // Logic Check: Verify the email domain strictly
+        if (!firebaseUser.email?.toLowerCase().endsWith("@neu.edu.ph")) {
           await signOut(auth);
           setUser(null);
           setProfile(null);
           toast({
             variant: "destructive",
             title: "Access Restricted",
-            description: "Please use your institutional @neu.edu.ph email account.",
+            description: "Only verified @neu.edu.ph institutional accounts are allowed.",
           });
           setLoading(false);
           router.push("/login");
@@ -99,11 +100,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: error.message,
-      });
+      // Common errors like popup closed are handled gracefully here
+      if (error.code !== 'auth/popup-closed-by-user') {
+        toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: error.message,
+        });
+      }
     }
   };
 

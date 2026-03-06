@@ -9,19 +9,19 @@ export default function LoginPage() {
   const { login, loading } = useAuth();
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-blue-700">
+    <div className="flex min-h-screen items-center justify-center p-4 bg-[#0C46A3]">
       <Card className="w-full max-w-md relative z-10 shadow-2xl border-none">
         <CardHeader className="text-center space-y-4 pt-10">
-          <div className="mx-auto w-20 h-20 bg-blue-700 flex items-center justify-center rounded-2xl shadow-lg">
+          <div className="mx-auto w-20 h-20 bg-primary flex items-center justify-center rounded-2xl shadow-lg">
             <GraduationCap className="w-12 h-12 text-white" />
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-3xl font-bold tracking-tight text-blue-800">NEU Portal</CardTitle>
+            <CardTitle className="text-3xl font-bold tracking-tight text-primary">NEU Portal</CardTitle>
             <CardDescription className="text-base">Institutional Access Management</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-6 pb-10">
-          <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg text-sm text-blue-800 font-medium border border-blue-100">
+          <div className="flex items-center gap-3 p-4 bg-accent/30 rounded-lg text-sm text-primary font-medium border border-accent">
             <ShieldCheck className="w-5 h-5 shrink-0" />
             <p>Access is restricted to verified @neu.edu.ph institutional email accounts only.</p>
           </div>
@@ -29,7 +29,7 @@ export default function LoginPage() {
           <Button 
             onClick={login} 
             disabled={loading}
-            className="w-full py-6 text-lg font-semibold shadow-md transition-all hover:scale-[1.02] bg-blue-700 hover:bg-blue-800"
+            className="w-full py-6 text-lg font-semibold shadow-md transition-all hover:scale-[1.02]"
             size="lg"
           >
             <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
