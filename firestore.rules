@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * NEU Library Visitor App - Security Rules
+     *
+     * CORE PHILOSOPHY:
+     * This ruleset implements a strict identity-based access model centered on institutional 
+     * authentication (@neu.edu.ph). It uses a "User-Owned" data pattern where users manage 
+     * their own profiles and visit logs, while administrators possess elevated privileges 
+     * for oversight, statistics, and access control (blocking).
+     *
+     * DATA STRUCTURE:
+     * - /users/{userId}: Root collection for user profiles. The document ID matches the 
+     *   Firebase Auth UID.
+     * - /users/{userId}/visits/{visitId}: Subcollection for visit logs, providing natural 
+     *   ownership via the document path.
+     *
+     * KEY SECURITY DECISIONS:
+     * 1. Institutional Restriction: All write operations require an email ending in @neu.edu.ph.
+     * 2. Administrative Oversight: Admins (defined by a 'role' field in their profile) have 
+     *    read access to all data and can manage the 'isBlocked' status of any user.
+     * 3. Blocking System: A 'isBlocked' flag on the UserProfile document prevents users 
+     *    from creating new visit records or modifying their profiles.
+     * 4. Relational Integrity: On creation, rules enforce that the internal 'id' or 'userId' 
+     *    fields match the authenticated user and the document path.
+     *
+     * DENORMALIZATION FOR AUTHORIZATION:
+     * To ensure fast, atomic rule evaluation, the 'role' and 'isBlocked' fields are 
+     * denormalized directly onto the UserProfile document. This allows the rules to 
+     * check permissions with a single document lookup.
+     */
+
+    // --- Helper Functions ---
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    function isNeuEmail() {
+      return request.auth.token.email.matches('.*@neu\\.edu\\.ph$');
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'admin';
+    }
+
+    function isNotBlocked() {
+      return isSignedIn() && getUserData().isBlocked == false;
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for user profile documents. Allows users to manage their own profile and admins to view/manage all.
+     * @path /users/{userId}
+     * @allow (get) If the user is the owner or an admin.
+     * @allow (create) If the user is the owner, has an institutional email, and matches their UID to the document ID.
+     * @deny (update) If a non-admin attempts to change their 'role' or 'isBlocked' status.
+     * @principle Ownership-based access with administrative overrides and field-level immutability for critical roles.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      
+      allow create: if isOwner(userId) && isNeuEmail() && request.resource.data.id == userId;
+      
+      allow update: if (isExistingOwner(userId) && isNotBlocked() && request.resource.data.role == resource.data.role && request.resource.data.isBlocked == resource.data.isBlocked) || isAdmin();
+      
+      allow delete: if isAdmin();
+
+      /**
+       * @description Rules for library visit logs. Nested under the user for path-based authorization.
+       * @path /users/{userId}/visits/{visitId}
+       * @allow (create) If the user is the owner, not blocked, and the userId in the data matches the path.
+       * @deny (list) If the user is not the owner of this specific visit subcollection and is not an admin.
+       * @principle Path-based ownership ensures users only manage their own visit history.
+       */
+      match /visits/{visitId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+        
+        allow create: if isOwner(userId) && isNotBlocked() && request.resource.data.userId == userId;
+        
+        allow update: if (isExistingOwner(userId) && isNotBlocked() && request.resource.data.userId == resource.data.userId) || isAdmin();
+        
+        allow delete: if isAdmin();
+      }
+    }
+
+    /**
+     * @description Collection Group rules for visits to allow administrators to run cross-user analytical queries.
+     * @path /{path=**}/visits/{visitId}
+     * @allow (list) If the user has the 'admin' role.
+     * @principle Supports administrative dashboards via global collection group queries.
+     */
+    match /{path=**}/visits/{visitId} {
+      allow read: if isAdmin();
+    }
+  }
+}
