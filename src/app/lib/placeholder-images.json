@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "neu-logo",
+      "description": "Institutional Logo Placeholder",
+      "imageUrl": "https://picsum.photos/seed/neu1/200/200",
+      "imageHint": "university logo"
+    },
+    {
+      "id": "neu-campus",
+      "description": "Institutional Campus Background",
+      "imageUrl": "https://picsum.photos/seed/neu2/1200/800",
+      "imageHint": "modern university"
+    }
+  ]
+}
