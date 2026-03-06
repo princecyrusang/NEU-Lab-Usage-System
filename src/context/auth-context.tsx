@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -8,12 +9,13 @@ import { useRouter, usePathname } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserProfile {
-  uid: string;
+  id: string;
   email: string;
   fullName: string;
   role: "admin" | "user";
-  college_office: string;
+  collegeOffice: string;
   isSetupComplete: boolean;
+  isBlocked: boolean;
 }
 
 interface AuthContextType {
@@ -44,12 +46,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return data;
     } else {
       const newProfile: UserProfile = {
-        uid: firebaseUser.uid,
+        id: firebaseUser.uid,
         email: firebaseUser.email || "",
         fullName: firebaseUser.displayName || "",
         role: "user",
-        college_office: "",
+        collegeOffice: "",
         isSetupComplete: false,
+        isBlocked: false,
       };
       await setDoc(docRef, newProfile);
       setProfile(newProfile);
@@ -59,9 +62,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setLoading(true);
       if (firebaseUser) {
-        // Logic Check: Verify the email domain strictly
-        if (!firebaseUser.email?.toLowerCase().endsWith("@neu.edu.ph")) {
+        // Strict domain verification
+        const email = firebaseUser.email?.toLowerCase() || "";
+        if (!email.endsWith("@neu.edu.ph")) {
           await signOut(auth);
           setUser(null);
           setProfile(null);
@@ -78,7 +83,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(firebaseUser);
         const userProfile = await syncProfile(firebaseUser);
         
-        if (!userProfile.isSetupComplete && pathname !== "/onboarding") {
+        if (userProfile.isBlocked) {
+          await signOut(auth);
+          setUser(null);
+          setProfile(null);
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: "Your account has been blocked from accessing the library portal.",
+          });
+          router.push("/login");
+        } else if (!userProfile.isSetupComplete && pathname !== "/onboarding") {
           router.push("/onboarding");
         } else if (userProfile.isSetupComplete && (pathname === "/login" || pathname === "/onboarding")) {
           router.push("/");
@@ -100,12 +115,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
-      // Common errors like popup closed are handled gracefully here
       if (error.code !== 'auth/popup-closed-by-user') {
         toast({
           variant: "destructive",
           title: "Login Failed",
-          description: error.message,
+          description: error.message || "An unexpected error occurred during sign in.",
         });
       }
     }

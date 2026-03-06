@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -51,7 +52,7 @@ export default function OnboardingPage() {
     try {
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
-        college_office: selectedOffice,
+        collegeOffice: selectedOffice,
         isSetupComplete: true,
       });
       toast({
