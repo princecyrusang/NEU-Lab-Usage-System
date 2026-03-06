@@ -9,8 +9,8 @@ export default function LoginPage() {
   const { login, loading } = useAuth();
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-[url('https://picsum.photos/seed/neu_bg/1920/1080')] bg-cover bg-center">
-      <div className="absolute inset-0 bg-primary/20 backdrop-blur-[2px]" />
+    <div className="flex min-h-screen items-center justify-center p-4 bg-primary">
+      <div className="absolute inset-0 bg-black/5 opacity-20" />
       <Card className="w-full max-w-md relative z-10 shadow-2xl border-none">
         <CardHeader className="text-center space-y-4 pt-10">
           <div className="mx-auto w-20 h-20 bg-primary flex items-center justify-center rounded-2xl shadow-lg">
