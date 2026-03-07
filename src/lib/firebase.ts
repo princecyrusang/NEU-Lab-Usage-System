@@ -1,28 +1,33 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { firebaseConfig as officialConfig } from "@/firebase/config";
 
-const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+/*
+  🔥 FIXED:
+  Using official config values to resolve auth-domain and invalid-api-key errors.
+*/
 
-// The authDomain MUST be formatted as 'project-id.firebaseapp.com'
-// It should not include 'https://' or be a search query URL.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyDummyKeyForBuild",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || (projectId ? `${projectId}.firebaseapp.com` : ""),
-  projectId: projectId,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: officialConfig.apiKey,
+  authDomain: officialConfig.authDomain,
+  projectId: officialConfig.projectId,
+  storageBucket: `${officialConfig.projectId}.appspot.com`,
+  messagingSenderId: officialConfig.messagingSenderId,
+  appId: officialConfig.appId,
 };
 
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+// Initialize Firebase only once
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+// Firebase Services
 const auth = getAuth(app);
 const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
 
-// Optional: Force select account to ensure users can switch if they are logged into multiple Google accounts
+// Google Provider
+const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
-  prompt: 'select_account'
+  prompt: "select_account",
 });
 
-export { auth, db, googleProvider };
+export { app, auth, db, googleProvider };
