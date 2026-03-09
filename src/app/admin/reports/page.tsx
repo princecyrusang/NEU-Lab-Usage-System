@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect, useMemo } from "react";
 import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
 import { collection } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,12 @@ const COLORS = ['#0C46A3', '#47C1EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'
 export default function ReportsPage() {
   const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Recharts requires browser environment, so wait until mounted
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   
   const isAdmin = profile?.role === "admin";
 
@@ -24,7 +31,52 @@ export default function ReportsPage() {
   }, [firestore, isAdmin]);
   const { data: visits, isLoading: visitsLoading } = useCollection(visitsQuery);
 
-  if (authLoading || visitsLoading) {
+  const analyticsData = useMemo(() => {
+    if (!visits) return { reasonData: [], collegeData: [], visitsByDay: [] };
+
+    // Group by Reason
+    const reasonData = visits.reduce((acc: any[], visit) => {
+      if (!visit.reason) return acc;
+      const existing = acc.find(a => a.name === visit.reason);
+      if (existing) {
+        existing.value += 1;
+      } else {
+        acc.push({ name: visit.reason, value: 1 });
+      }
+      return acc;
+    }, []);
+
+    // Group by College
+    const collegeData = visits.reduce((acc: any[], visit) => {
+      if (!visit.collegeOffice) return acc;
+      const existing = acc.find(a => a.name === visit.collegeOffice);
+      if (existing) {
+        existing.value += 1;
+      } else {
+        acc.push({ name: visit.collegeOffice, value: 1 });
+      }
+      return acc;
+    }, []);
+
+    // Visits per day - use a stable date format for sorting
+    const visitsByDay = visits.reduce((acc: any[], visit) => {
+      const dateObj = visit.timestamp?.toDate?.();
+      if (!dateObj) return acc;
+      
+      const dateKey = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+      const existing = acc.find(a => a.date === dateKey);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        acc.push({ date: dateKey, count: 1 });
+      }
+      return acc;
+    }, []).sort((a: any, b: any) => a.date.localeCompare(b.date));
+
+    return { reasonData, collegeData, visitsByDay };
+  }, [visits]);
+
+  if (authLoading || visitsLoading || !isMounted) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -34,39 +86,7 @@ export default function ReportsPage() {
 
   if (!isAdmin) return null;
 
-  // Group by Reason
-  const reasonData = visits?.reduce((acc: any[], visit) => {
-    const existing = acc.find(a => a.name === visit.reason);
-    if (existing) {
-      existing.value += 1;
-    } else {
-      acc.push({ name: visit.reason, value: 1 });
-    }
-    return acc;
-  }, []) || [];
-
-  // Group by College
-  const collegeData = visits?.reduce((acc: any[], visit) => {
-    const existing = acc.find(a => a.name === visit.collegeOffice);
-    if (existing) {
-      existing.value += 1;
-    } else {
-      acc.push({ name: visit.collegeOffice, value: 1 });
-    }
-    return acc;
-  }, []) || [];
-
-  // Visits per day
-  const visitsByDay = visits?.reduce((acc: any[], visit) => {
-    const date = visit.timestamp?.toDate().toLocaleDateString();
-    const existing = acc.find(a => a.date === date);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      acc.push({ date, count: 1 });
-    }
-    return acc;
-  }, []).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()) || [];
+  const { reasonData, collegeData, visitsByDay } = analyticsData;
 
   return (
     <div className="space-y-8">
@@ -93,7 +113,7 @@ export default function ReportsPage() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {reasonData.map((entry, index) => (
+                  {reasonData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>

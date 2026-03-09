@@ -89,7 +89,7 @@ export default function VisitorCheckInPage() {
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <GraduationCap className="w-8 h-8" />
+            < GraduationCap className="w-8 h-8" />
             <h1 className="text-xl font-bold tracking-tight">NEU Library</h1>
           </Link>
           <Link href="/dashboard">
@@ -118,7 +118,6 @@ export default function VisitorCheckInPage() {
                   <User className="w-6 h-6" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl">{profile.fullName}</CardTitle>
                   <CardTitle className="text-xl">{profile.fullName}</CardTitle>
                   <CardDescription className="flex flex-col gap-0.5 mt-1">
                     <span className="flex items-center gap-1.5"><Mail className="w-3 h-3" /> {profile.email}</span>

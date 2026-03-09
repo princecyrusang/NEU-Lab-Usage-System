@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LayoutDashboard, Users, BarChart3, LogOut, Menu, Loader2, ArrowLeft } from "lucide-react";
+import { GraduationCap, LayoutDashboard, Users, BarChart3, LogOut, Menu, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -47,15 +47,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {item.label}
         </Link>
       ))}
-      <div className="pt-4 mt-4 border-t">
-        <Link 
-          href="/dashboard"
-          className="flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-muted-foreground hover:bg-accent hover:text-primary"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Exit to Dashboard
-        </Link>
-      </div>
     </nav>
   );
 

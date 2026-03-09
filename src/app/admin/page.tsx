@@ -8,13 +8,21 @@ import { Users, UserX, CalendarDays, History, Loader2 } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
 import { useAuth } from "@/context/auth-context";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
+import { useMemo } from "react";
 
 export default function AdminDashboard() {
   const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
-  const todayStart = startOfDay(new Date());
-  const weekStart = startOfWeek(new Date());
-  const monthStart = startOfMonth(new Date());
+
+  // Use useMemo for date bounds to prevent hydration mismatches
+  const { todayStart, weekStart, monthStart } = useMemo(() => {
+    const now = new Date();
+    return {
+      todayStart: startOfDay(now),
+      weekStart: startOfWeek(now),
+      monthStart: startOfMonth(now),
+    };
+  }, []);
 
   // Strict role check for safety
   const isConfirmedAdmin = !authLoading && profile?.role === "admin";
@@ -59,9 +67,18 @@ export default function AdminDashboard() {
   }
 
   const stats = {
-    today: allVisits?.filter(v => v.timestamp?.toDate() >= todayStart).length || 0,
-    week: allVisits?.filter(v => v.timestamp?.toDate() >= weekStart).length || 0,
-    month: allVisits?.filter(v => v.timestamp?.toDate() >= monthStart).length || 0,
+    today: allVisits?.filter(v => {
+      const date = v.timestamp?.toDate?.();
+      return date && date >= todayStart;
+    }).length || 0,
+    week: allVisits?.filter(v => {
+      const date = v.timestamp?.toDate?.();
+      return date && date >= weekStart;
+    }).length || 0,
+    month: allVisits?.filter(v => {
+      const date = v.timestamp?.toDate?.();
+      return date && date >= monthStart;
+    }).length || 0,
     blocked: blockedUsers?.length || 0,
   };
 
@@ -71,6 +88,11 @@ export default function AdminDashboard() {
     { label: "Visitors This Month", value: stats.month, icon: Users, color: "text-green-600", bg: "bg-green-100" },
     { label: "Blocked Users", value: stats.blocked, icon: UserX, color: "text-red-600", bg: "bg-red-100" },
   ];
+
+  const recentVisits = allVisits
+    ?.filter(v => !!v.timestamp?.toDate)
+    .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0))
+    .slice(0, 5);
 
   return (
     <div className="space-y-8">
@@ -102,17 +124,21 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {allVisits?.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0)).slice(0, 5).map((visit) => (
-                <div key={visit.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                  <div>
-                    <p className="font-semibold text-sm">{visit.fullName}</p>
-                    <p className="text-xs text-muted-foreground">{visit.reason}</p>
+              {recentVisits && recentVisits.length > 0 ? (
+                recentVisits.map((visit) => (
+                  <div key={visit.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                    <div>
+                      <p className="font-semibold text-sm">{visit.fullName || "Unknown Visitor"}</p>
+                      <p className="text-xs text-muted-foreground">{visit.reason || "No reason specified"}</p>
+                    </div>
+                    <p className="text-xs font-medium text-primary">
+                      {visit.timestamp?.toDate ? visit.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
+                    </p>
                   </div>
-                  <p className="text-xs font-medium text-primary">
-                    {visit.timestamp?.toDate ? visit.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
-                  </p>
-                </div>
-              )) || <p className="text-sm text-muted-foreground">No recent visits recorded.</p>}
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">No recent visits recorded.</p>
+              )}
             </div>
           </CardContent>
         </Card>

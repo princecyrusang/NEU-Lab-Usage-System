@@ -6,7 +6,6 @@ import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, orderBy } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { 
   GraduationCap, 
   ArrowLeft, 
@@ -30,7 +29,7 @@ import { AdminPageHeader } from "@/components/AdminPageHeader";
  * Access restricted exclusively to Administrators.
  */
 export default function VisitHistoryPage() {
-  const { profile, user, loading: authLoading } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
 
   // Redirect or block normal users
@@ -133,45 +132,48 @@ export default function VisitHistoryPage() {
               </Card>
             ) : (
               <div className="grid gap-4">
-                {visits.map((visit) => (
-                  <Card key={visit.id} className="hover:shadow-lg transition-all border-none shadow-sm overflow-hidden group">
-                    <div className="h-1 bg-[#47C1EB] w-0 group-hover:w-full transition-all duration-300" />
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row md:items-center gap-6">
-                        <div className="w-14 h-14 bg-accent/30 rounded-2xl flex items-center justify-center text-[#0C46A3] shrink-0 shadow-inner">
-                          <BookOpen className="w-7 h-7" />
-                        </div>
-                        
-                        <div className="flex-1 space-y-3 min-w-0">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <h4 className="font-bold text-xl text-[#0C46A3] truncate">
-                              {visit.reason}
-                            </h4>
-                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                              <Calendar className="w-4 h-4" />
-                              {visit.timestamp?.toDate ? format(visit.timestamp.toDate(), 'PPP') : 'Processing...'}
+                {visits.map((visit) => {
+                  const visitDate = visit.timestamp?.toDate?.();
+                  return (
+                    <Card key={visit.id} className="hover:shadow-lg transition-all border-none shadow-sm overflow-hidden group">
+                      <div className="h-1 bg-[#47C1EB] w-0 group-hover:w-full transition-all duration-300" />
+                      <CardContent className="p-6">
+                        <div className="flex flex-col md:flex-row md:items-center gap-6">
+                          <div className="w-14 h-14 bg-accent/30 rounded-2xl flex items-center justify-center text-[#0C46A3] shrink-0 shadow-inner">
+                            <BookOpen className="w-7 h-7" />
+                          </div>
+                          
+                          <div className="flex-1 space-y-3 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <h4 className="font-bold text-xl text-[#0C46A3] truncate">
+                                {visit.reason || "Visit"}
+                              </h4>
+                              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                <Calendar className="w-4 h-4" />
+                                {visitDate ? format(visitDate, 'PPP') : 'Processing...'}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                              <span className="flex items-center gap-2 text-muted-foreground">
+                                <Clock className="w-4 h-4 text-[#47C1EB]" />
+                                {visitDate ? format(visitDate, 'p') : ''}
+                              </span>
+                              <span className="flex items-center gap-2 text-muted-foreground">
+                                <Building className="w-4 h-4 text-[#47C1EB]" />
+                                {visit.collegeOffice || "N/A"}
+                              </span>
+                              <span className="flex items-center gap-2 text-[#0C46A3] font-semibold">
+                                <UserIcon className="w-4 h-4" />
+                                {visit.fullName || "Institutional Member"}
+                              </span>
                             </div>
                           </div>
-
-                          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                            <span className="flex items-center gap-2 text-muted-foreground">
-                              <Clock className="w-4 h-4 text-[#47C1EB]" />
-                              {visit.timestamp?.toDate ? format(visit.timestamp.toDate(), 'p') : ''}
-                            </span>
-                            <span className="flex items-center gap-2 text-muted-foreground">
-                              <Building className="w-4 h-4 text-[#47C1EB]" />
-                              {visit.collegeOffice}
-                            </span>
-                            <span className="flex items-center gap-2 text-[#0C46A3] font-semibold">
-                              <UserIcon className="w-4 h-4" />
-                              {visit.fullName}
-                            </span>
-                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
