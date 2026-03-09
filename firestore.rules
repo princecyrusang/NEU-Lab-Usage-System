@@ -14,16 +14,19 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      // Use a safe get that handles missing documents
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(path) ? get(path).data : null;
     }
 
     function isAdmin() {
-      return isSignedIn() && getUserData().role == 'admin';
+      let data = getUserData();
+      return isSignedIn() && data != null && data.role == 'admin';
     }
 
     function isNotBlocked() {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      return isSignedIn() && (!exists(path) || get(path).data.isBlocked == false);
+      let data = getUserData();
+      return isSignedIn() && (data == null || data.isBlocked == false);
     }
 
     // --- Collection Rules ---

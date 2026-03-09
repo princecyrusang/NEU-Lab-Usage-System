@@ -15,8 +15,8 @@ export default function AdminDashboard() {
   const weekStart = startOfWeek(new Date());
   const monthStart = startOfMonth(new Date());
 
-  // Strict role check
-  const isAdmin = profile?.role === "admin";
+  // Strict role check for safety
+  const isAdmin = !authLoading && profile?.role === "admin";
 
   // Query all users - Only run if confirmed admin
   const usersQuery = useMemoFirebase(() => {
@@ -100,7 +100,7 @@ export default function AdminDashboard() {
                     <p className="text-xs text-muted-foreground">{visit.reason}</p>
                   </div>
                   <p className="text-xs font-medium text-primary">
-                    {visit.timestamp?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {visit.timestamp?.toDate ? visit.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
                   </p>
                 </div>
               )) || <p className="text-sm text-muted-foreground">No recent visits recorded.</p>}
