@@ -64,7 +64,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
-        // Strict domain verification
         const email = firebaseUser.email?.toLowerCase() || "";
         if (!email.endsWith("@neu.edu.ph")) {
           await signOut(auth);
@@ -83,20 +82,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(firebaseUser);
         const userProfile = await syncProfile(firebaseUser);
         
-        if (userProfile.isBlocked) {
-          await signOut(auth);
-          setUser(null);
-          setProfile(null);
-          toast({
-            variant: "destructive",
-            title: "Access Denied",
-            description: "Your account has been blocked from accessing the library portal.",
-          });
-          router.push("/login");
+        if (userProfile.isBlocked && pathname !== "/access-denied") {
+          router.push("/access-denied");
         } else if (!userProfile.isSetupComplete && pathname !== "/onboarding") {
           router.push("/onboarding");
-        } else if (userProfile.isSetupComplete && (pathname === "/login" || pathname === "/onboarding")) {
-          router.push("/");
+        } else if (userProfile.isSetupComplete) {
+          if (userProfile.role === "admin" && !pathname.startsWith("/admin")) {
+            router.push("/admin");
+          } else if (userProfile.role === "user" && (pathname === "/login" || pathname === "/onboarding" || pathname === "/admin")) {
+            router.push("/");
+          }
         }
       } else {
         setUser(null);

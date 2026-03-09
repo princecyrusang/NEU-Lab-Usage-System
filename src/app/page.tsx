@@ -1,13 +1,61 @@
+
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { LogOut, User, Building, Mail, ShieldCheck, GraduationCap } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { LogOut, GraduationCap, User, Building, Mail, BookOpen } from "lucide-react";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 
-export default function Home() {
-  const { profile, logout, loading } = useAuth();
+const VISIT_REASONS = [
+  "Reading",
+  "Research",
+  "Studying",
+  "Use of Computer",
+  "Group Study",
+  "Other"
+];
+
+export default function VisitorCheckInPage() {
+  const { profile, logout, loading, user } = useAuth();
+  const [reason, setReason] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const handleVisitSubmit = async () => {
+    if (!reason || !user || !profile) return;
+
+    setIsSubmitting(true);
+    try {
+      // Record visit in subcollection as per backend.json structure
+      const visitsRef = collection(db, "users", user.uid, "visits");
+      await addDoc(visitsRef, {
+        userId: user.uid,
+        fullName: profile.fullName,
+        email: profile.email,
+        collegeOffice: profile.collegeOffice,
+        reason: reason,
+        timestamp: serverTimestamp(),
+      });
+
+      router.push("/confirmation");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Submission Error",
+        description: "Could not record your visit. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (loading || !profile) {
     return (
@@ -22,12 +70,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background pb-12">
-      {/* Institutional Header */}
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <GraduationCap className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-tight">NEU Portal Access</h1>
+            <h1 className="text-xl font-bold tracking-tight">NEU Library</h1>
           </div>
           <Button 
             variant="ghost" 
@@ -40,91 +87,57 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 pt-12 max-w-4xl">
-        <div className="grid gap-8">
-          {/* Welcome Section */}
-          <section className="space-y-2">
-            <h2 className="text-3xl font-bold text-primary">Academic Dashboard</h2>
-            <p className="text-muted-foreground">Welcome back to the institutional portal.</p>
-          </section>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Profile Info Card */}
-            <Card className="md:col-span-2 shadow-md border-none overflow-hidden">
-              <CardHeader className="bg-accent/20 border-b">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-2xl">{profile.fullName}</CardTitle>
-                    <CardDescription className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="bg-white">{profile.role.toUpperCase()}</Badge>
-                      {profile.isSetupComplete && (
-                        <span className="flex items-center text-xs text-green-600 font-medium">
-                          <ShieldCheck className="w-3 h-3 mr-1" /> Verified Institutional Account
-                        </span>
-                      )}
-                    </CardDescription>
-                  </div>
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                    <User className="w-8 h-8" />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-6 space-y-6">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                      <Mail className="w-3 h-3" /> Email Address
-                    </p>
-                    <p className="font-medium">{profile.email}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                      <Building className="w-3 h-3" /> Affiliation
-                    </p>
-                    <p className="font-medium">{profile.college_office}</p>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <h3 className="text-sm font-bold text-primary mb-2">Account Status</h3>
-                    <ul className="text-sm space-y-2 text-muted-foreground">
-                      <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        Google Authentication Linked
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        Institutional Domain Verified
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        Profile Configuration Complete
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions Card */}
-            <Card className="shadow-md border-none">
-              <CardHeader>
-                <CardTitle className="text-lg">Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start py-6 hover:bg-accent/20 border-accent/50 text-primary">
-                  <User className="w-4 h-4 mr-3" /> Update Profile
-                </Button>
-                <Button variant="outline" className="w-full justify-start py-6 hover:bg-accent/20 border-accent/50 text-primary">
-                  <ShieldCheck className="w-4 h-4 mr-3" /> Security Settings
-                </Button>
-                <Button variant="outline" className="w-full justify-start py-6 hover:bg-accent/20 border-accent/50 text-primary">
-                  <Building className="w-4 h-4 mr-3" /> Office Directory
-                </Button>
-              </CardContent>
-            </Card>
+      <main className="container mx-auto px-4 pt-12 max-w-2xl">
+        <div className="space-y-8">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-bold text-primary">Visitor Check-In</h2>
+            <p className="text-muted-foreground">Please log your visit details below.</p>
           </div>
+
+          <Card className="shadow-lg border-none">
+            <CardHeader className="bg-accent/10 border-b">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                  <User className="w-6 h-6" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">{profile.fullName}</CardTitle>
+                  <CardDescription className="flex flex-col gap-0.5 mt-1">
+                    <span className="flex items-center gap-1.5"><Mail className="w-3 h-3" /> {profile.email}</span>
+                    <span className="flex items-center gap-1.5"><Building className="w-3 h-3" /> {profile.collegeOffice}</span>
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-8 space-y-8">
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 text-primary font-semibold text-lg">
+                  <BookOpen className="w-5 h-5" />
+                  <Label>What is your reason for visiting today?</Label>
+                </div>
+
+                <RadioGroup 
+                  onValueChange={setReason} 
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                >
+                  {VISIT_REASONS.map((option) => (
+                    <div key={option} className="flex items-center space-x-3 p-4 rounded-xl border-2 border-muted transition-all hover:bg-accent/5 hover:border-accent cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                      <RadioGroupItem value={option} id={option} className="text-primary border-primary" />
+                      <Label htmlFor={option} className="flex-1 font-medium cursor-pointer">{option}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+
+              <Button 
+                onClick={handleVisitSubmit}
+                disabled={!reason || isSubmitting}
+                className="w-full py-8 text-xl font-bold shadow-xl transition-transform active:scale-95"
+              >
+                {isSubmitting ? "Recording Visit..." : "Submit Visit Entry"}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
