@@ -57,10 +57,11 @@ service cloud.firestore {
      * @description Rules for library visits (top-level collection).
      */
     match /visits/{visitId} {
-      // Users can only see their own visits, Admins see all
+      // Single document read
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       
-      // List rules: Admins can list everything. 
+      // List rules with query constraints:
+      // Admins can list everything.
       // Regular users MUST provide a filter where userId matches their own UID.
       allow list: if isSignedIn() && (
         isAdmin() || 

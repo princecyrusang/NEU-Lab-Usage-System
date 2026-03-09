@@ -4,17 +4,27 @@
 import { useAuth } from "@/context/auth-context";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
 import { collection, query, where, orderBy } from "firebase/firestore";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, ArrowLeft, Calendar, Clock, BookOpen, Building } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { 
+  GraduationCap, 
+  ArrowLeft, 
+  Calendar, 
+  Clock, 
+  BookOpen, 
+  Building,
+  User as UserIcon,
+  SearchX
+} from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 
 export default function VisitHistoryPage() {
-  const { profile, user, loading } = useAuth();
+  const { profile, user, loading: authLoading } = useAuth();
   const firestore = useFirestore();
 
-  // Create a conditional query based on the user's role
+  // Construct the appropriate query based on user role
   const visitsQuery = useMemoFirebase(() => {
     if (!user || !profile || !firestore) return null;
 
@@ -26,6 +36,8 @@ export default function VisitHistoryPage() {
     }
 
     // Regular users see only their own visits (required by security rules)
+    // The security rule "request.query.filters.userId == request.auth.uid" 
+    // forces this exact filter for non-admins.
     return query(
       visitsRef,
       where("userId", "==", user.uid),
@@ -33,22 +45,13 @@ export default function VisitHistoryPage() {
     );
   }, [user, profile, firestore]);
 
-  const { data: visits, isLoading: visitsLoading } = useCollection(visitsQuery);
+  const { data: visits, isLoading: visitsLoading, error } = useCollection(visitsQuery);
 
-  if (loading || visitsLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-16 h-16 bg-primary/20 rounded-full" />
-          <div className="h-4 w-32 bg-muted rounded" />
-        </div>
-      </div>
-    );
-  }
+  const isLoading = authLoading || visitsLoading;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
+    <div className="min-h-screen bg-[#EEF1F6]">
+      <header className="bg-[#0C46A3] text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <GraduationCap className="w-8 h-8" />
@@ -60,81 +63,121 @@ export default function VisitHistoryPage() {
               className="text-white hover:bg-white/20 hover:text-white"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
+              Back to Home
             </Button>
           </Link>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-12 max-w-3xl">
+      <main className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="space-y-8">
-          <div>
-            <h2 className="text-3xl font-bold text-primary">
-              {profile?.role === "admin" ? "Global Visit Log" : "Visit History"}
-            </h2>
-            <p className="text-muted-foreground">
-              {profile?.role === "admin" 
-                ? "A comprehensive record of all library entries." 
-                : "A record of your past library entries."}
-            </p>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold text-[#0C46A3]">
+                {profile?.role === "admin" ? "Institutional Visit Logs" : "My Visit History"}
+              </h2>
+              <p className="text-muted-foreground mt-1">
+                {profile?.role === "admin" 
+                  ? "Monitoring library access and usage patterns across the university." 
+                  : "Reviewing your historical library attendance records."}
+              </p>
+            </div>
+            {profile?.role === "admin" && (
+              <Badge variant="secondary" className="w-fit bg-blue-100 text-[#0C46A3] border-blue-200">
+                Administrator View
+              </Badge>
+            )}
           </div>
 
           <div className="space-y-4">
-            {!visits || visits.length === 0 ? (
-              <Card className="border-dashed border-2">
-                <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+            {isLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-24 w-full bg-white rounded-xl animate-pulse border shadow-sm" />
+                ))}
+              </div>
+            ) : error ? (
+              <Card className="border-destructive/20 bg-destructive/5">
+                <CardContent className="py-10 text-center">
+                  <p className="text-destructive font-medium">Unable to load history</p>
+                  <p className="text-sm text-muted-foreground mt-1">Please ensure you have permission to view this content.</p>
+                </CardContent>
+              </Card>
+            ) : !visits || visits.length === 0 ? (
+              <Card className="border-dashed border-2 bg-white/50">
+                <CardContent className="flex flex-col items-center justify-center py-16 text-center space-y-4">
                   <div className="p-4 bg-muted rounded-full">
-                    <Calendar className="w-8 h-8 text-muted-foreground" />
+                    <SearchX className="w-10 h-10 text-muted-foreground" />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="text-lg font-semibold">No visits found</h3>
-                    <p className="text-sm text-muted-foreground">No records match the current view.</p>
+                    <h3 className="text-xl font-semibold">No records found</h3>
+                    <p className="text-muted-foreground max-w-xs mx-auto">
+                      There are currently no recorded visits associated with this account.
+                    </p>
                   </div>
                   {profile?.role !== "admin" && (
                     <Link href="/check-in">
-                      <Button>Log Your First Visit</Button>
+                      <Button className="mt-4 shadow-md">Record Your First Visit</Button>
                     </Link>
                   )}
                 </CardContent>
               </Card>
             ) : (
-              visits.map((visit) => (
-                <Card key={visit.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-5 flex items-center gap-4">
-                    <div className="w-12 h-12 bg-accent/30 rounded-lg flex items-center justify-center text-primary shrink-0">
-                      <BookOpen className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start">
-                        <h4 className="font-bold text-lg truncate">{visit.reason}</h4>
-                        {profile?.role === "admin" && (
-                          <span className="text-[10px] font-bold uppercase bg-primary/10 text-primary px-2 py-0.5 rounded">
-                            {visit.fullName.split(' ')[0]}
-                          </span>
-                        )}
+              <div className="grid gap-4">
+                {visits.map((visit) => (
+                  <Card key={visit.id} className="hover:shadow-lg transition-all border-none shadow-sm overflow-hidden group">
+                    <div className="h-1 bg-[#47C1EB] w-0 group-hover:w-full transition-all duration-300" />
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row md:items-center gap-6">
+                        <div className="w-14 h-14 bg-accent/30 rounded-2xl flex items-center justify-center text-[#0C46A3] shrink-0 shadow-inner">
+                          <BookOpen className="w-7 h-7" />
+                        </div>
+                        
+                        <div className="flex-1 space-y-3 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <h4 className="font-bold text-xl text-[#0C46A3] truncate">
+                              {visit.reason}
+                            </h4>
+                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                              <Calendar className="w-4 h-4" />
+                              {visit.timestamp ? format(visit.timestamp.toDate(), 'PPP') : 'Processing...'}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                            <span className="flex items-center gap-2 text-muted-foreground">
+                              <Clock className="w-4 h-4 text-[#47C1EB]" />
+                              {visit.timestamp ? format(visit.timestamp.toDate(), 'p') : ''}
+                            </span>
+                            <span className="flex items-center gap-2 text-muted-foreground">
+                              <Building className="w-4 h-4 text-[#47C1EB]" />
+                              {visit.collegeOffice}
+                            </span>
+                            {profile?.role === "admin" && (
+                              <span className="flex items-center gap-2 text-primary font-semibold">
+                                <UserIcon className="w-4 h-4" />
+                                {visit.fullName}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5" />
-                          {visit.timestamp ? format(visit.timestamp.toDate(), 'PPP') : 'Processing...'}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Clock className="w-3.5 h-3.5" />
-                          {visit.timestamp ? format(visit.timestamp.toDate(), 'p') : ''}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          <Building className="w-3.5 h-3.5" />
-                          {visit.collegeOffice}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </div>
         </div>
       </main>
+      
+      <footer className="py-10 border-t mt-12 bg-white/50">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
+            New Era University • Library Services • Access History
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
