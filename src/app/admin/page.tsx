@@ -4,40 +4,48 @@
 import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
 import { query, where, collection } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserX, CalendarDays, History } from "lucide-react";
+import { Users, UserX, CalendarDays, History, Loader2 } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
 import { useAuth } from "@/context/auth-context";
 
 export default function AdminDashboard() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
   const todayStart = startOfDay(new Date());
   const weekStart = startOfWeek(new Date());
   const monthStart = startOfMonth(new Date());
 
-  // Defensive guards for admin-only queries
+  // Strict role check
   const isAdmin = profile?.role === "admin";
 
-  // Query all users
+  // Query all users - Only run if confirmed admin
   const usersQuery = useMemoFirebase(() => {
     if (!isAdmin || !firestore) return null;
     return collection(firestore, "users");
   }, [firestore, isAdmin]);
-  const { data: users } = useCollection(usersQuery);
+  const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
 
-  // Query blocked users
+  // Query blocked users - Only run if confirmed admin
   const blockedUsersQuery = useMemoFirebase(() => {
     if (!isAdmin || !firestore) return null;
     return query(collection(firestore, "users"), where("isBlocked", "==", true));
   }, [firestore, isAdmin]);
-  const { data: blockedUsers } = useCollection(blockedUsersQuery);
+  const { data: blockedUsers, isLoading: blockedLoading } = useCollection(blockedUsersQuery);
 
-  // Query visits from TOP-LEVEL collection
+  // Query visits from TOP-LEVEL collection - Only run if confirmed admin
   const visitsQuery = useMemoFirebase(() => {
     if (!isAdmin || !firestore) return null;
     return collection(firestore, "visits");
   }, [firestore, isAdmin]);
-  const { data: allVisits } = useCollection(visitsQuery);
+  const { data: allVisits, isLoading: visitsLoading } = useCollection(visitsQuery);
+
+  if (authLoading || usersLoading || blockedLoading || visitsLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   if (!isAdmin) return null;
 
@@ -85,7 +93,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {allVisits?.sort((a, b) => b.timestamp?.toMillis() - a.timestamp?.toMillis()).slice(0, 5).map((visit) => (
+              {allVisits?.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0)).slice(0, 5).map((visit) => (
                 <div key={visit.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                   <div>
                     <p className="font-semibold text-sm">{visit.fullName}</p>

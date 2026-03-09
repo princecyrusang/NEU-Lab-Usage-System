@@ -2,25 +2,34 @@
 "use client";
 
 import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
-import { collection, query } from "firebase/firestore";
+import { collection } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useAuth } from "@/context/auth-context";
+import { Loader2 } from "lucide-react";
 
 const COLORS = ['#0C46A3', '#47C1EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export default function ReportsPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
   
   const isAdmin = profile?.role === "admin";
 
-  // Query from TOP-LEVEL visits collection with defensive guard
+  // Query from TOP-LEVEL visits collection - Only run if confirmed admin
   const visitsQuery = useMemoFirebase(() => {
     if (!isAdmin || !firestore) return null;
     return collection(firestore, "visits");
   }, [firestore, isAdmin]);
-  const { data: visits } = useCollection(visitsQuery);
+  const { data: visits, isLoading: visitsLoading } = useCollection(visitsQuery);
+
+  if (authLoading || visitsLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   if (!isAdmin) return null;
 
@@ -46,7 +55,7 @@ export default function ReportsPage() {
     return acc;
   }, []) || [];
 
-  // Visits per day (last 7 days simplified)
+  // Visits per day
   const visitsByDay = visits?.reduce((acc: any[], visit) => {
     const date = visit.timestamp?.toDate().toLocaleDateString();
     const existing = acc.find(a => a.date === date);
