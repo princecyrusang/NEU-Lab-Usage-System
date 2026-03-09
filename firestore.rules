@@ -13,26 +13,17 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isNeuEmail() {
-      return isSignedIn() && 
-             request.auth.token.email != null && 
-             request.auth.token.email.matches('.*@neu\\.edu\\.ph$');
-    }
-
     function getUserData() {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(path) ? get(path).data : null;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAdmin() {
-      let data = getUserData();
-      return isSignedIn() && data != null && data.role == 'admin';
+      return isSignedIn() && getUserData().role == 'admin';
     }
 
     function isNotBlocked() {
-      let data = getUserData();
-      // Allow if data is null (first login) or explicitly not blocked
-      return isSignedIn() && (data == null || data.isBlocked == false);
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return isSignedIn() && (!exists(path) || get(path).data.isBlocked == false);
     }
 
     // --- Collection Rules ---
@@ -44,7 +35,7 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       
-      allow create: if isOwner(userId) && isNeuEmail();
+      allow create: if isOwner(userId);
       
       allow update: if (isOwner(userId) && isNotBlocked() && 
                       request.resource.data.role == resource.data.role && 

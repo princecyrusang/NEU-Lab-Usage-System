@@ -11,16 +11,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Search, UserX, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/context/auth-context";
 
 export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
+  const { profile } = useAuth();
   const firestore = useFirestore();
 
+  const isAdmin = profile?.role === "admin";
+
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !isAdmin) return null;
     return query(collection(firestore, "users"), orderBy("fullName"));
-  }, [firestore]);
+  }, [firestore, isAdmin]);
 
   const { data: users, isLoading } = useCollection(usersQuery);
 
@@ -30,7 +34,7 @@ export default function UsersPage() {
   );
 
   const toggleBlockStatus = async (userId: string, currentStatus: boolean) => {
-    if (!firestore) return;
+    if (!firestore || !isAdmin) return;
     try {
       const userRef = doc(firestore, "users", userId);
       await updateDoc(userRef, { isBlocked: !currentStatus });
@@ -46,6 +50,8 @@ export default function UsersPage() {
       });
     }
   };
+
+  if (!isAdmin) return null;
 
   return (
     <div className="space-y-8">

@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LayoutDashboard, Users, BarChart3, LogOut, Menu } from "lucide-react";
+import { GraduationCap, LayoutDashboard, Users, BarChart3, LogOut, Menu, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
@@ -16,9 +16,17 @@ const NAV_ITEMS = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { profile, logout } = useAuth();
+  const { profile, loading, logout } = useAuth();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#EEF1F6]">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   if (profile?.role !== "admin") return null;
 
@@ -47,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 bg-white border-r flex-col p-6 shadow-sm sticky top-0 h-screen">
         <div className="flex items-center gap-3 text-primary mb-10 px-2">
-          <GraduationCap className="w-8 h-8" />
+          < GraduationCap className="w-8 h-8" />
           <span className="font-bold text-xl tracking-tight">Admin Portal</span>
         </div>
         
