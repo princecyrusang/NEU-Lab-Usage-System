@@ -59,7 +59,13 @@ service cloud.firestore {
     match /visits/{visitId} {
       // Users can only see their own visits, Admins see all
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      
+      // List rules: Admins can list everything. 
+      // Regular users MUST provide a filter where userId matches their own UID.
+      allow list: if isSignedIn() && (
+        isAdmin() || 
+        (request.query.filters != null && request.query.filters.userId == request.auth.uid)
+      );
       
       // Users can only create visits for themselves if not blocked
       allow create: if isSignedIn() && isNotBlocked() && request.resource.data.userId == request.auth.uid;
