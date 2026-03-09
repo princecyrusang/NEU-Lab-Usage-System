@@ -47,23 +47,20 @@ export default function VisitorCheckInPage() {
       timestamp: serverTimestamp(),
     };
 
-    // Record visit in subcollection as per backend.json and security rules
-    const visitsRef = collection(firestore, "users", user.uid, "visits");
+    // Store visit in the TOP-LEVEL "visits" collection
+    const visitsRef = collection(firestore, "visits");
     
-    // Follow the non-blocking pattern with central error emitting
     addDoc(visitsRef, visitData)
       .then(() => {
         router.push("/confirmation");
       })
       .catch(async (error) => {
-        // Construct contextual error for better debugging
         const permissionError = new FirestorePermissionError({
           path: visitsRef.path,
           operation: 'create',
           requestResourceData: visitData,
         });
         
-        // Emit to global error listener
         errorEmitter.emit('permission-error', permissionError);
         
         toast({
@@ -93,7 +90,7 @@ export default function VisitorCheckInPage() {
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <GraduationCap className="w-8 h-8" />
+            < GraduationCap className="w-8 h-8" />
             <h1 className="text-xl font-bold tracking-tight">NEU Library</h1>
           </div>
           <Button 

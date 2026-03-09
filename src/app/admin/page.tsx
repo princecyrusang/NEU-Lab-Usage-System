@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
-import { collectionGroup, query, where, collection } from "firebase/firestore";
+import { query, where, collection } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserX, CalendarDays, History } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
@@ -13,15 +13,18 @@ export default function AdminDashboard() {
   const weekStart = startOfWeek(new Date());
   const monthStart = startOfMonth(new Date());
 
+  // Query all users
   const usersQuery = useMemoFirebase(() => collection(firestore, "users"), [firestore]);
   const { data: users } = useCollection(usersQuery);
 
+  // Query blocked users
   const blockedUsersQuery = useMemoFirebase(() => 
     query(collection(firestore, "users"), where("isBlocked", "==", true)), [firestore]
   );
   const { data: blockedUsers } = useCollection(blockedUsersQuery);
 
-  const visitsQuery = useMemoFirebase(() => query(collectionGroup(firestore, "visits")), [firestore]);
+  // Query visits from TOP-LEVEL collection
+  const visitsQuery = useMemoFirebase(() => collection(firestore, "visits"), [firestore]);
   const { data: allVisits } = useCollection(visitsQuery);
 
   const stats = {

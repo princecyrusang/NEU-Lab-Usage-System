@@ -1,22 +1,7 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    /**
-     * NEU Library Visitor App - Security Rules
-     *
-     * CORE PHILOSOPHY:
-     * This ruleset implements a strict identity-based access model centered on institutional 
-     * authentication (@neu.edu.ph). It uses a "User-Owned" data pattern where users manage 
-     * their own profiles and visit logs, while administrators possess elevated privileges 
-     * for oversight, statistics, and access control (blocking).
-     *
-     * DATA STRUCTURE:
-     * - /users/{userId}: Root collection for user profiles. The document ID matches the 
-     *   Firebase Auth UID.
-     * - /users/{userId}/visits/{visitId}: Subcollection for visit logs, providing natural 
-     *   ownership via the document path.
-     */
 
     // --- Helper Functions ---
 
@@ -26,10 +11,6 @@ service cloud.firestore {
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
     }
 
     function isNeuEmail() {
@@ -50,8 +31,7 @@ service cloud.firestore {
 
     function isNotBlocked() {
       let data = getUserData();
-      // If data is null (profile not yet fully synced/created), we allow the check to pass 
-      // as the AuthProvider handles initial state. If it exists, it must be false.
+      // Allow if data is null (first login) or explicitly not blocked
       return isSignedIn() && (data == null || data.isBlocked == false);
     }
 
@@ -64,31 +44,26 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       
-      allow create: if isOwner(userId) && isNeuEmail() && request.resource.data.id == userId;
+      allow create: if isOwner(userId) && isNeuEmail();
       
-      allow update: if (isExistingOwner(userId) && isNotBlocked() && request.resource.data.role == resource.data.role && request.resource.data.isBlocked == resource.data.isBlocked) || isAdmin();
+      allow update: if (isOwner(userId) && isNotBlocked() && request.resource.data.role == resource.data.role && request.resource.data.isBlocked == resource.data.isBlocked) || isAdmin();
       
       allow delete: if isAdmin();
-
-      /**
-       * @description Rules for library visit logs. Nested under the user for path-based authorization.
-       */
-      match /visits/{visitId} {
-        allow get, list: if isOwner(userId) || isAdmin();
-        
-        allow create: if isOwner(userId) && isNotBlocked() && request.resource.data.userId == userId;
-        
-        allow update: if (isExistingOwner(userId) && isNotBlocked() && request.resource.data.userId == resource.data.userId) || isAdmin();
-        
-        allow delete: if isAdmin();
-      }
     }
 
     /**
-     * @description Collection Group rules for visits to allow administrators to run cross-user analytical queries.
+     * @description Rules for library visits (top-level collection).
      */
-    match /{path=**}/visits/{visitId} {
-      allow read: if isAdmin();
+    match /visits/{visitId} {
+      // Users can only see their own visits, Admins see all
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAdmin() || (isSignedIn() && request.query.filters.userId == request.auth.uid);
+      
+      // Users can only create visits for themselves if not blocked
+      allow create: if isSignedIn() && isNotBlocked() && request.resource.data.userId == request.auth.uid;
+      
+      // Only admins can modify or delete visit records
+      allow update, delete: if isAdmin();
     }
   }
 }

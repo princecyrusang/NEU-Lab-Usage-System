@@ -1,17 +1,18 @@
 
 "use client";
 
-import { useMemoFirebase, useCollection } from "@/firebase";
-import { collectionGroup, query } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
+import { collection, query } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 const COLORS = ['#0C46A3', '#47C1EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export default function ReportsPage() {
-  const visitsQuery = useMemoFirebase(() => query(collectionGroup(db, "visits")), []);
+  const firestore = useFirestore();
+  
+  // Query from TOP-LEVEL visits collection
+  const visitsQuery = useMemoFirebase(() => collection(firestore, "visits"), [firestore]);
   const { data: visits } = useCollection(visitsQuery);
 
   // Group by Reason

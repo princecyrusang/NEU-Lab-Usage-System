@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -61,14 +62,23 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the UserProfile who made this visit. (Relationship: UserProfile 1:N Visit)"
+          "description": "Reference to the UserProfile who made this visit."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Denormalized full name of the visitor."
+        },
+        "email": {
+          "type": "string",
+          "description": "Denormalized email of the visitor."
+        },
+        "collegeOffice": {
+          "type": "string",
+          "description": "Denormalized college or office of the visitor."
         },
         "reason": {
           "type": "string",
-          "description": "The primary reason for the user's visit to the library, selected from a predefined list.",
-          "items": {
-            "type": "string"
-          }
+          "description": "The primary reason for the user's visit to the library."
         },
         "timestamp": {
           "type": "string",
@@ -77,8 +87,10 @@
         }
       },
       "required": [
-        "id",
         "userId",
+        "fullName",
+        "email",
+        "collegeOffice",
         "reason",
         "timestamp"
       ]
@@ -87,7 +99,7 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "google.com"
     ]
   },
   "firestore": {
@@ -99,36 +111,20 @@
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Stores individual user profiles. The document ID `{userId}` matches `request.auth.uid`. Includes denormalized 'role' and 'isBlocked' fields for authorization independence and 'isSetupComplete' for onboarding state. User's access is restricted to their own profile, while admins have full access.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the user."
-            }
-          ]
+          "description": "Stores individual user profiles. Access is restricted to self or admin."
         }
       },
       {
-        "path": "/users/{userId}/visits/{visitId}",
+        "path": "/visits/{visitId}",
         "definition": {
           "entityName": "Visit",
           "schema": {
             "$ref": "#/backend/entities/Visit"
           },
-          "description": "Records individual visits made by a user to the NEU Library. This is a subcollection under a specific user's profile, ensuring direct path-based ownership (`userId` from path) for authorization independence. The `userId` field is also present in the document for robust querying. Users can only add/read their own visits; administrators can read all visits via collection group queries.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the user who made the visit."
-            },
-            {
-              "name": "visitId",
-              "description": "The unique identifier for a specific library visit."
-            }
-          ]
+          "description": "Global collection of all library visits. Users can create visits for themselves, admins can view all."
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed with a strong emphasis on Authorization Independence, Structural Segregation, and consistent Access Modeling to ensure security, scalability, and debuggability.\n\n**Authorization Independence via Denormalization:**\n1.  **User Profiles (`/users/{userId}`):** Each user's profile document is self-contained. The document ID (`{userId}`) directly corresponds to the Firebase Authentication UID (`request.auth.uid`). This means that authorization rules for a user's own profile (`read`, `update`) can directly compare `request.auth.uid` with `{userId}` from the path, eliminating any need for `get()` operations to check ownership. Critical authorization fields like `role` and `isBlocked` are stored directly within this document, making rule evaluations atomic and efficient.\n2.  **User Visits (`/users/{userId}/visits/{visitId}`):** By making 'visits' a subcollection of 'users', the `userId` is an intrinsic part of the document's path. This denormalization ensures that when accessing a visit record, the ownership is immediately available from the path itself (`{userId}`), without requiring a `get()` call to the parent `UserProfile` document. This allows for atomic write operations (e.g., creating a new visit) and simplifies security rules, as `request.auth.uid == userId` is a direct check for user ownership. The `userId` field within the 'Visit' document is added for robust querying and indexing, further enhancing independence.\n\n**Support for QAPs (Query As Permissions):**\n1.  **User Profiles (`/users/{userId}`):**\n    *   **Self-Access:** For individual users, QAPs are naturally supported because a user can only query their own path `/users/{request.auth.uid}`. Any `list` attempt on `/users` by a non-admin will be denied, preventing broad, unauthorized data exposure.\n    *   **Admin Access:** Administrators, identified by their `role: 'admin'` in their `/users/{adminUid}` document, will be granted `list` and `get` access across the entire `/users` collection. This allows them to search and view user profiles in a QAP-compliant manner, as their elevated role acts as the filtering mechanism enforced by rules, not by client-side queries.\n2.  **User Visits (`/users/{userId}/visits/{visitId}`):**\n    *   **Self-Access:** Users can only `list` or `get` from their specific subcollection path, e.g., `/users/{request.auth.uid}/visits`. This is inherently QAP-compliant as the query scope is tightly bound to the authenticated user's ID.\n    *   **Admin Access (Visitor Statistics):** To generate statistics like 'Visitors Today/Week/Month' and filter visits, administrators will perform **Collection Group Queries** on the `visits` subcollection. Since the `userId` is available as a field within each `Visit` document, and the `timestamp` is also present, admins can query `firestore.collectionGroup('visits').where('timestamp', '>=', start).where('timestamp', '<=', end)` effectively. The security rules will then enforce that only `request.auth.uid` with `role: 'admin'` can execute such `list` or `get` operations across the collection group, thus maintaining QAP compliance for statistical queries. The 'admin' role check will prevent regular users from performing these broad queries."
+    "reasoning": "Moving visits to a top-level collection simplifies global analytics and reporting for administrators while still maintaining strict user-based ownership via the 'userId' field for security rules."
   }
 }
