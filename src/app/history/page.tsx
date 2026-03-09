@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { collection, query, orderBy } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,8 @@ import {
   Building,
   User as UserIcon,
   SearchX,
-  Loader2
+  Loader2,
+  ShieldAlert
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -24,40 +25,49 @@ import { format } from "date-fns";
 /**
  * VisitHistoryPage Component
  * 
- * Displays the history of library visits for the authenticated user.
- * Administrators see a global log of all visits across the institution.
+ * Displays the institutional history of library visits.
+ * Access restricted exclusively to Administrators.
  */
 export default function VisitHistoryPage() {
   const { profile, user, loading: authLoading } = useAuth();
   const firestore = useFirestore();
 
-  // Construct the appropriate query based on user role.
-  // This memoized query strictly follows Firestore Security Rules to prevent permission denials.
+  // Redirect or block normal users
+  const isAdmin = profile?.role === "admin";
+
+  // Memoized query for institutional visit logs
   const visitsQuery = useMemoFirebase(() => {
-    // Only proceed if auth and profile data are fully loaded and available.
-    // This prevents unfiltered list attempts before the role is determined.
-    if (authLoading || !user || !profile || !firestore) return null;
-
-    const visitsRef = collection(firestore, "visits");
-
-    // Case 1: Administrators can list all visits.
-    if (profile.role === "admin") {
-      return query(visitsRef, orderBy("timestamp", "desc"));
-    }
-
-    // Case 2: Regular users can only list their own visits.
-    // SECURITY CRITICAL: The Firestore security rule (resource.data.userId == request.auth.uid)
-    // requires this exact filter for non-admins to avoid a "Missing or insufficient permissions" error.
-    return query(
-      visitsRef,
-      where("userId", "==", user.uid),
-      orderBy("timestamp", "desc")
-    );
-  }, [user?.uid, profile?.role, firestore, authLoading]);
+    if (!isAdmin || authLoading || !firestore) return null;
+    return query(collection(firestore, "visits"), orderBy("timestamp", "desc"));
+  }, [isAdmin, firestore, authLoading]);
 
   const { data: visits, isLoading: visitsLoading, error } = useCollection(visitsQuery);
 
-  const isLoading = authLoading || visitsLoading;
+  const isLoading = authLoading || (isAdmin && visitsLoading);
+
+  // Protected route content for non-admins
+  if (!authLoading && !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[#EEF1F6]">
+        <Card className="w-full max-w-md shadow-xl border-none">
+          <CardContent className="pt-10 pb-10 text-center space-y-6">
+            <div className="mx-auto w-20 h-20 bg-destructive/10 flex items-center justify-center rounded-full">
+              <ShieldAlert className="w-12 h-12 text-destructive" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold text-destructive">Restricted Access</h3>
+              <p className="text-muted-foreground">
+                Visit history and institutional logs are only accessible to library administrators.
+              </p>
+            </div>
+            <Link href="/" className="block">
+              <Button className="w-full py-6">Return to Dashboard</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#EEF1F6]">
@@ -83,34 +93,28 @@ export default function VisitHistoryPage() {
         <div className="space-y-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-bold text-[#0C46A3]">
-                {profile?.role === "admin" ? "Institutional Visit Logs" : "My Visit History"}
-              </h2>
+              <h2 className="text-3xl font-bold text-[#0C46A3]">Institutional Visit Logs</h2>
               <p className="text-muted-foreground mt-1">
-                {profile?.role === "admin" 
-                  ? "Monitoring library access and usage patterns across the university." 
-                  : "Reviewing your historical library attendance records."}
+                Monitoring library access and usage patterns across the university.
               </p>
             </div>
-            {profile?.role === "admin" && (
-              <Badge variant="secondary" className="w-fit bg-blue-100 text-[#0C46A3] border-blue-200 px-3 py-1 text-sm">
-                Administrator View
-              </Badge>
-            )}
+            <Badge variant="secondary" className="w-fit bg-blue-100 text-[#0C46A3] border-blue-200 px-3 py-1 text-sm">
+              Administrator View
+            </Badge>
           </div>
 
           <div className="space-y-4">
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 space-y-4">
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                <p className="text-muted-foreground font-medium">Retrieving visit records...</p>
+                <p className="text-muted-foreground font-medium">Retrieving institutional records...</p>
               </div>
             ) : error ? (
               <Card className="border-destructive/20 bg-destructive/5">
                 <CardContent className="py-10 text-center">
-                  <p className="text-destructive font-bold text-lg">Unable to load history</p>
+                  <p className="text-destructive font-bold text-lg">Unable to load institutional history</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    {error.message || "Please ensure you have permission to view this content."}
+                    {error.message || "An error occurred while fetching library logs."}
                   </p>
                   <Link href="/">
                     <Button variant="outline" className="mt-6">Return to Dashboard</Button>
@@ -126,14 +130,9 @@ export default function VisitHistoryPage() {
                   <div className="space-y-1">
                     <h3 className="text-xl font-semibold">No records found</h3>
                     <p className="text-muted-foreground max-w-xs mx-auto">
-                      There are currently no recorded visits associated with this account.
+                      There are currently no recorded visits in the institutional database.
                     </p>
                   </div>
-                  {profile?.role !== "admin" && (
-                    <Link href="/check-in">
-                      <Button className="mt-4 shadow-md bg-[#0C46A3]">Record Your First Visit</Button>
-                    </Link>
-                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -167,12 +166,10 @@ export default function VisitHistoryPage() {
                               <Building className="w-4 h-4 text-[#47C1EB]" />
                               {visit.collegeOffice}
                             </span>
-                            {profile?.role === "admin" && (
-                              <span className="flex items-center gap-2 text-[#0C46A3] font-semibold">
-                                <UserIcon className="w-4 h-4" />
-                                {visit.fullName}
-                              </span>
-                            )}
+                            <span className="flex items-center gap-2 text-[#0C46A3] font-semibold">
+                              <UserIcon className="w-4 h-4" />
+                              {visit.fullName}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -188,7 +185,7 @@ export default function VisitHistoryPage() {
       <footer className="py-10 border-t mt-12 bg-white/50">
         <div className="container mx-auto px-4 text-center">
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
-            New Era University • Library Services • Access History
+            New Era University • Library Services • Institutional Access History
           </p>
         </div>
       </footer>

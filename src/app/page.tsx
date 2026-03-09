@@ -18,6 +18,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+/**
+ * HomeDashboard Component
+ * 
+ * The main landing page after login. Displays user profile details
+ * and role-based quick actions.
+ */
 export default function HomeDashboard() {
   const { profile, logout, loading } = useAuth();
 
@@ -32,7 +38,9 @@ export default function HomeDashboard() {
     );
   }
 
-  const QUICK_ACTIONS = [
+  const isAdmin = profile.role === "admin";
+
+  const ALL_ACTIONS = [
     {
       title: "Log Library Visit",
       description: "Record your entry to the library facilities.",
@@ -40,16 +48,18 @@ export default function HomeDashboard() {
       href: "/check-in",
       color: "bg-blue-500",
       textColor: "text-blue-500",
-      borderColor: "border-blue-200"
+      borderColor: "border-blue-200",
+      adminOnly: false,
     },
     {
       title: "Visit History",
-      description: "View your past library visit records.",
+      description: "Review institutional visit records and logs.",
       icon: History,
       href: "/history",
       color: "bg-indigo-500",
       textColor: "text-indigo-500",
-      borderColor: "border-indigo-200"
+      borderColor: "border-indigo-200",
+      adminOnly: true,
     },
     {
       title: "Profile Settings",
@@ -58,9 +68,13 @@ export default function HomeDashboard() {
       href: "/profile",
       color: "bg-slate-500",
       textColor: "text-slate-500",
-      borderColor: "border-slate-200"
+      borderColor: "border-slate-200",
+      adminOnly: false,
     },
   ];
+
+  // Filter actions based on the user's role
+  const quickActions = ALL_ACTIONS.filter(action => !action.adminOnly || isAdmin);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -85,7 +99,7 @@ export default function HomeDashboard() {
         <div className="space-y-8">
           <div>
             <h2 className="text-3xl font-bold text-primary">Welcome, {profile.fullName.split(' ')[0]}!</h2>
-            <p className="text-muted-foreground">What would you like to do today?</p>
+            <p className="text-muted-foreground">Access your institutional library services below.</p>
           </div>
 
           <Card className="border-none shadow-md overflow-hidden">
@@ -106,7 +120,7 @@ export default function HomeDashboard() {
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {QUICK_ACTIONS.map((action) => (
+            {quickActions.map((action) => (
               <Link key={action.title} href={action.href} className="group">
                 <Card className={`h-full transition-all hover:shadow-lg border-l-4 ${action.borderColor} active:scale-95`}>
                   <CardContent className="p-6">
@@ -123,7 +137,7 @@ export default function HomeDashboard() {
               </Link>
             ))}
 
-            {profile.role === "admin" && (
+            {isAdmin && (
               <Link href="/admin" className="group lg:col-span-1">
                 <Card className="h-full transition-all hover:shadow-lg border-l-4 border-red-200 active:scale-95 bg-red-50/30">
                   <CardContent className="p-6">
