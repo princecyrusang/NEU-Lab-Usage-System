@@ -78,7 +78,7 @@ export default function VisitHistoryPage() {
             <GraduationCap className="w-8 h-8" />
             <h1 className="text-xl font-bold tracking-tight">NEU Library</h1>
           </Link>
-          <Link href="/">
+          <Link href="/dashboard">
             <Button 
               variant="ghost" 
               className="text-white hover:bg-white/20 hover:text-white"
@@ -95,6 +95,8 @@ export default function VisitHistoryPage() {
           <AdminPageHeader 
             title="Institutional Visit Logs" 
             description="Monitoring library access and usage patterns across the university." 
+            showBackButton={false}
+            centered={true}
           />
 
           <div className="space-y-4">
