@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, UserX, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 
 export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -55,10 +56,10 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-primary">Manage Users</h1>
-        <p className="text-muted-foreground">Search and manage library access permissions.</p>
-      </div>
+      <AdminPageHeader 
+        title="Manage Users" 
+        description="Search, monitor, and manage library access permissions for all university members." 
+      />
 
       <Card className="border-none shadow-md">
         <CardHeader className="pb-0">

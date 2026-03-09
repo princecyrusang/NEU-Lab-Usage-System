@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useAuth } from "@/context/auth-context";
 import { Loader2 } from "lucide-react";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 
 const COLORS = ['#0C46A3', '#47C1EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
@@ -16,7 +17,7 @@ export default function ReportsPage() {
   
   const isAdmin = profile?.role === "admin";
 
-  // Query from TOP-LEVEL visits collection - Only run if confirmed admin
+  // Query from TOP-LEVEL visits collection
   const visitsQuery = useMemoFirebase(() => {
     if (!isAdmin || !firestore) return null;
     return collection(firestore, "visits");
@@ -69,10 +70,10 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-primary">Library Reports</h1>
-        <p className="text-muted-foreground">Visual data analysis of library visits and user demographics.</p>
-      </div>
+      <AdminPageHeader 
+        title="Library Reports" 
+        description="Visual data analysis of library visits, usage trends, and user demographics." 
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-none shadow-md">

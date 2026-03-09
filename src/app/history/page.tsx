@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 
 /**
  * VisitHistoryPage Component
@@ -83,7 +84,7 @@ export default function VisitHistoryPage() {
               className="text-white hover:bg-white/20 hover:text-white"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
+              Back to User Dashboard
             </Button>
           </Link>
         </div>
@@ -91,17 +92,10 @@ export default function VisitHistoryPage() {
 
       <main className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="space-y-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-bold text-[#0C46A3]">Institutional Visit Logs</h2>
-              <p className="text-muted-foreground mt-1">
-                Monitoring library access and usage patterns across the university.
-              </p>
-            </div>
-            <Badge variant="secondary" className="w-fit bg-blue-100 text-[#0C46A3] border-blue-200 px-3 py-1 text-sm">
-              Administrator View
-            </Badge>
-          </div>
+          <AdminPageHeader 
+            title="Institutional Visit Logs" 
+            description="Monitoring library access and usage patterns across the university." 
+          />
 
           <div className="space-y-4">
             {isLoading ? (

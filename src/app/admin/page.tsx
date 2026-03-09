@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserX, CalendarDays, History, Loader2 } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
 import { useAuth } from "@/context/auth-context";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 
 export default function AdminDashboard() {
   const { profile, loading: authLoading } = useAuth();
@@ -15,24 +16,24 @@ export default function AdminDashboard() {
   const weekStart = startOfWeek(new Date());
   const monthStart = startOfMonth(new Date());
 
-  // Strict role check for safety - ensures queries only run if authorization is confirmed
+  // Strict role check for safety
   const isConfirmedAdmin = !authLoading && profile?.role === "admin";
 
-  // Query all users - Only run if confirmed admin
+  // Query all users
   const usersQuery = useMemoFirebase(() => {
     if (!isConfirmedAdmin || !firestore) return null;
     return collection(firestore, "users");
   }, [firestore, isConfirmedAdmin]);
   const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
 
-  // Query blocked users - Only run if confirmed admin
+  // Query blocked users
   const blockedUsersQuery = useMemoFirebase(() => {
     if (!isConfirmedAdmin || !firestore) return null;
     return query(collection(firestore, "users"), where("isBlocked", "==", true));
   }, [firestore, isConfirmedAdmin]);
   const { data: blockedUsers, isLoading: blockedLoading } = useCollection(blockedUsersQuery);
 
-  // Query visits from TOP-LEVEL collection - Only run if confirmed admin
+  // Query visits
   const visitsQuery = useMemoFirebase(() => {
     if (!isConfirmedAdmin || !firestore) return null;
     return collection(firestore, "visits");
@@ -73,10 +74,10 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-primary">System Overview</h1>
-        <p className="text-muted-foreground">Real-time library usage statistics.</p>
-      </div>
+      <AdminPageHeader 
+        title="System Overview" 
+        description="Real-time library usage statistics and administrative controls." 
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat) => (
