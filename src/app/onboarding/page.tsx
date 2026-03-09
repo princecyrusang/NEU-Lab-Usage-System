@@ -3,12 +3,12 @@
 
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
+import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, UserCircle2 } from "lucide-react";
@@ -33,13 +33,14 @@ const COLLEGES_AND_OFFICES = [
 
 export default function OnboardingPage() {
   const { profile, user } = useAuth();
+  const firestore = useFirestore();
   const [selectedOffice, setSelectedOffice] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
   const handleSubmit = async () => {
-    if (!selectedOffice || !user) {
+    if (!selectedOffice || !user || !firestore) {
       toast({
         variant: "destructive",
         title: "Incomplete Selection",
@@ -50,7 +51,7 @@ export default function OnboardingPage() {
 
     setIsSubmitting(true);
     try {
-      const userRef = doc(db, "users", user.uid);
+      const userRef = doc(firestore, "users", user.uid);
       await updateDoc(userRef, {
         collegeOffice: selectedOffice,
         isSetupComplete: true,
@@ -64,7 +65,7 @@ export default function OnboardingPage() {
       toast({
         variant: "destructive",
         title: "Update Failed",
-        description: error.message,
+        description: error.message || "Failed to complete setup.",
       });
     } finally {
       setIsSubmitting(false);

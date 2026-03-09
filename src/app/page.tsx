@@ -55,7 +55,7 @@ export default function HomeDashboard() {
       title: "Profile Settings",
       description: "Manage your institutional affiliation details.",
       icon: Settings,
-      href: "/onboarding",
+      href: "/profile",
       color: "bg-slate-500",
       textColor: "text-slate-500",
       borderColor: "border-slate-200"

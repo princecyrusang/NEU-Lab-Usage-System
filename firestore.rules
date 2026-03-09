@@ -46,7 +46,9 @@ service cloud.firestore {
       
       allow create: if isOwner(userId) && isNeuEmail();
       
-      allow update: if (isOwner(userId) && isNotBlocked() && request.resource.data.role == resource.data.role && request.resource.data.isBlocked == resource.data.isBlocked) || isAdmin();
+      allow update: if (isOwner(userId) && isNotBlocked() && 
+                      request.resource.data.role == resource.data.role && 
+                      request.resource.data.isBlocked == resource.data.isBlocked) || isAdmin();
       
       allow delete: if isAdmin();
     }
@@ -57,7 +59,7 @@ service cloud.firestore {
     match /visits/{visitId} {
       // Users can only see their own visits, Admins see all
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow list: if isAdmin() || (isSignedIn() && request.query.filters.userId == request.auth.uid);
+      allow list: if isSignedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
       
       // Users can only create visits for themselves if not blocked
       allow create: if isSignedIn() && isNotBlocked() && request.resource.data.userId == request.auth.uid;

@@ -2,23 +2,26 @@
 "use client";
 
 import { useState } from "react";
-import { useMemoFirebase, useCollection } from "@/firebase";
+import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
 import { collection, doc, updateDoc, query, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserX, UserCheck, Eye } from "lucide-react";
+import { Search, UserX, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
+  const firestore = useFirestore();
 
-  const usersQuery = useMemoFirebase(() => query(collection(db, "users"), orderBy("fullName")), []);
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, "users"), orderBy("fullName"));
+  }, [firestore]);
+
   const { data: users, isLoading } = useCollection(usersQuery);
 
   const filteredUsers = users?.filter(u => 
@@ -27,18 +30,19 @@ export default function UsersPage() {
   );
 
   const toggleBlockStatus = async (userId: string, currentStatus: boolean) => {
+    if (!firestore) return;
     try {
-      const userRef = doc(db, "users", userId);
+      const userRef = doc(firestore, "users", userId);
       await updateDoc(userRef, { isBlocked: !currentStatus });
       toast({
         title: currentStatus ? "User Unblocked" : "User Blocked",
         description: `Successfully updated the status of the user.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update user status.",
+        description: error.message || "Failed to update user status.",
       });
     }
   };
