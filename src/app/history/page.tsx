@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, where, orderBy, Query, DocumentData } from "firebase/firestore";
+import { collection, query, where, orderBy } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,25 +21,32 @@ import {
 import Link from "next/link";
 import { format } from "date-fns";
 
+/**
+ * VisitHistoryPage Component
+ * 
+ * Displays the history of library visits for the authenticated user.
+ * Administrators see a global log of all visits across the institution.
+ */
 export default function VisitHistoryPage() {
   const { profile, user, loading: authLoading } = useAuth();
   const firestore = useFirestore();
 
-  // Construct the appropriate query based on user role
-  // This memoized query strictly follows Firestore Security Rules
+  // Construct the appropriate query based on user role.
+  // This memoized query strictly follows Firestore Security Rules to prevent permission denials.
   const visitsQuery = useMemoFirebase(() => {
+    // Only proceed if auth and profile data are fully loaded and available.
     if (!user || !profile || !firestore) return null;
 
     const visitsRef = collection(firestore, "visits");
 
-    // Admins see all visits
+    // Case 1: Administrators can list all visits.
     if (profile.role === "admin") {
       return query(visitsRef, orderBy("timestamp", "desc"));
     }
 
-    // Regular users see only their own visits.
-    // SECURITY CRITICAL: The security rule "request.query.filters.userId == request.auth.uid" 
-    // requires this exact filter for non-admins to avoid a permission denial.
+    // Case 2: Regular users can only list their own visits.
+    // SECURITY CRITICAL: The Firestore security rule (resource.data.userId == request.auth.uid)
+    // requires this exact filter for non-admins to avoid a "Missing or insufficient permissions" error.
     return query(
       visitsRef,
       where("userId", "==", user.uid),
@@ -65,7 +72,7 @@ export default function VisitHistoryPage() {
               className="text-white hover:bg-white/20 hover:text-white"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
+              Back to Dashboard
             </Button>
           </Link>
         </div>
@@ -85,7 +92,7 @@ export default function VisitHistoryPage() {
               </p>
             </div>
             {profile?.role === "admin" && (
-              <Badge variant="secondary" className="w-fit bg-blue-100 text-[#0C46A3] border-blue-200">
+              <Badge variant="secondary" className="w-fit bg-blue-100 text-[#0C46A3] border-blue-200 px-3 py-1 text-sm">
                 Administrator View
               </Badge>
             )}
@@ -123,7 +130,7 @@ export default function VisitHistoryPage() {
                   </div>
                   {profile?.role !== "admin" && (
                     <Link href="/check-in">
-                      <Button className="mt-4 shadow-md">Record Your First Visit</Button>
+                      <Button className="mt-4 shadow-md bg-[#0C46A3]">Record Your First Visit</Button>
                     </Link>
                   )}
                 </CardContent>
@@ -160,7 +167,7 @@ export default function VisitHistoryPage() {
                               {visit.collegeOffice}
                             </span>
                             {profile?.role === "admin" && (
-                              <span className="flex items-center gap-2 text-primary font-semibold">
+                              <span className="flex items-center gap-2 text-[#0C46A3] font-semibold">
                                 <UserIcon className="w-4 h-4" />
                                 {visit.fullName}
                               </span>
