@@ -84,7 +84,7 @@ export default function VisitHistoryPage() {
               className="text-white hover:bg-white/20 hover:text-white"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to User Dashboard
+              Back
             </Button>
           </Link>
         </div>

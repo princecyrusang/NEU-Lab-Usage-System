@@ -55,7 +55,7 @@ export function AdminPageHeader({
                 className="bg-white text-primary hover:bg-blue-50 font-bold shadow-md transition-all active:scale-95 whitespace-nowrap"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to User Dashboard
+                Back
               </Button>
             </Link>
           )}
