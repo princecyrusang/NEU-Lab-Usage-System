@@ -3,15 +3,17 @@
 
 import { useState } from "react";
 import { useAuth } from "@/context/auth-context";
+import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { LogOut, GraduationCap, User, Building, Mail, BookOpen } from "lucide-react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 const VISIT_REASONS = [
   "Reading",
@@ -24,37 +26,55 @@ const VISIT_REASONS = [
 
 export default function VisitorCheckInPage() {
   const { profile, logout, loading, user } = useAuth();
+  const firestore = useFirestore();
   const [reason, setReason] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleVisitSubmit = async () => {
-    if (!reason || !user || !profile) return;
+  const handleVisitSubmit = () => {
+    if (!reason || !user || !profile || !firestore) return;
 
     setIsSubmitting(true);
-    try {
-      // Record visit in subcollection as per backend.json structure
-      const visitsRef = collection(db, "users", user.uid, "visits");
-      await addDoc(visitsRef, {
-        userId: user.uid,
-        fullName: profile.fullName,
-        email: profile.email,
-        collegeOffice: profile.collegeOffice,
-        reason: reason,
-        timestamp: serverTimestamp(),
-      });
+    
+    // Define the visit data object with the exact fields requested
+    const visitData = {
+      userId: user.uid,
+      fullName: profile.fullName,
+      email: user.email,
+      collegeOffice: profile.collegeOffice,
+      reason: reason,
+      timestamp: serverTimestamp(),
+    };
 
-      router.push("/confirmation");
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Submission Error",
-        description: "Could not record your visit. Please try again.",
+    // Record visit in subcollection as per backend.json and security rules
+    const visitsRef = collection(firestore, "users", user.uid, "visits");
+    
+    // Follow the non-blocking pattern with central error emitting
+    addDoc(visitsRef, visitData)
+      .then(() => {
+        router.push("/confirmation");
+      })
+      .catch(async (error) => {
+        // Construct contextual error for better debugging
+        const permissionError = new FirestorePermissionError({
+          path: visitsRef.path,
+          operation: 'create',
+          requestResourceData: visitData,
+        });
+        
+        // Emit to global error listener
+        errorEmitter.emit('permission-error', permissionError);
+        
+        toast({
+          variant: "destructive",
+          title: "Submission Error",
+          description: "Could not record your visit. Please check permissions or contact staff.",
+        });
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   if (loading || !profile) {

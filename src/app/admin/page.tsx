@@ -1,29 +1,27 @@
 
 "use client";
 
-import { useMemoFirebase, useCollection } from "@/firebase";
-import { collectionGroup, query, where, getDocs, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
+import { collectionGroup, query, where, collection } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserX, CalendarDays, History } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
 
 export default function AdminDashboard() {
-  // Stats are complex, we'll fetch them using a mix of hooks and raw counts
+  const firestore = useFirestore();
   const todayStart = startOfDay(new Date());
   const weekStart = startOfWeek(new Date());
   const monthStart = startOfMonth(new Date());
 
-  const usersQuery = useMemoFirebase(() => collection(db, "users"), []);
+  const usersQuery = useMemoFirebase(() => collection(firestore, "users"), [firestore]);
   const { data: users } = useCollection(usersQuery);
 
   const blockedUsersQuery = useMemoFirebase(() => 
-    query(collection(db, "users"), where("isBlocked", "==", true)), []
+    query(collection(firestore, "users"), where("isBlocked", "==", true)), [firestore]
   );
   const { data: blockedUsers } = useCollection(blockedUsersQuery);
 
-  // For visits, we'll use collectionGroup query as specified in backend.json
-  const visitsQuery = useMemoFirebase(() => query(collectionGroup(db, "visits")), []);
+  const visitsQuery = useMemoFirebase(() => query(collectionGroup(firestore, "visits")), [firestore]);
   const { data: allVisits } = useCollection(visitsQuery);
 
   const stats = {
@@ -70,7 +68,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {allVisits?.slice(0, 5).map((visit) => (
+              {allVisits?.sort((a, b) => b.timestamp?.toMillis() - a.timestamp?.toMillis()).slice(0, 5).map((visit) => (
                 <div key={visit.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                   <div>
                     <p className="font-semibold text-sm">{visit.fullName}</p>

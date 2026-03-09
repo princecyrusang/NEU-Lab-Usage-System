@@ -2,9 +2,9 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, User, signOut, signInWithPopup } from "firebase/auth";
+import { User, signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { auth, db, googleProvider } from "@/lib/firebase";
+import { useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
 import { useRouter, usePathname } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,6 +29,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const firebaseAuth = useFirebaseAuth();
+  const firestore = useFirestore();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   const syncProfile = async (firebaseUser: User) => {
-    const docRef = doc(db, "users", firebaseUser.uid);
+    const docRef = doc(firestore, "users", firebaseUser.uid);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
@@ -61,12 +63,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (!firebaseAuth) return;
+
+    const unsubscribe = firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
       setLoading(true);
       if (firebaseUser) {
         const email = firebaseUser.email?.toLowerCase() || "";
         if (!email.endsWith("@neu.edu.ph")) {
-          await signOut(auth);
+          await signOut(firebaseAuth);
           setUser(null);
           setProfile(null);
           toast({
@@ -104,11 +108,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [pathname, router, toast]);
+  }, [firebaseAuth, pathname, router, toast]);
 
   const login = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const googleProvider = new GoogleAuthProvider();
+      googleProvider.setCustomParameters({ prompt: "select_account" });
+      await signInWithPopup(firebaseAuth, googleProvider);
     } catch (error: any) {
       if (error.code !== 'auth/popup-closed-by-user') {
         toast({
@@ -121,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await signOut(auth);
+    await signOut(firebaseAuth);
     router.push("/login");
   };
 
