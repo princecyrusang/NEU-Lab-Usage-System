@@ -70,7 +70,7 @@ export default function ProfileSettingsPage() {
         title: "Profile Updated",
         description: "Your details have been successfully updated.",
       });
-      router.push("/");
+      router.push("/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -97,11 +97,11 @@ export default function ProfileSettingsPage() {
     <div className="min-h-screen bg-background">
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <GraduationCap className="w-8 h-8" />
             <h1 className="text-xl font-bold tracking-tight">NEU Library</h1>
           </Link>
-          <Link href="/">
+          <Link href="/dashboard">
             <Button 
               variant="ghost" 
               className="text-white hover:bg-white/20 hover:text-white"

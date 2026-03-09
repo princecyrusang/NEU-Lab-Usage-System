@@ -91,9 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else if (!userProfile.isSetupComplete && pathname !== "/onboarding") {
           router.push("/onboarding");
         } else if (userProfile.isSetupComplete) {
-          // All authenticated and set up users now land on the Home Dashboard (/)
           if (pathname === "/login" || pathname === "/onboarding") {
-            router.push("/");
+            router.push("/dashboard");
           }
         }
       } else {

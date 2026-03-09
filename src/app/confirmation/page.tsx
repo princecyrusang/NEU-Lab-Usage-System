@@ -24,7 +24,7 @@ export default function ConfirmationPage() {
           </p>
 
           <Button 
-            onClick={() => router.push("/")} 
+            onClick={() => router.push("/dashboard")} 
             className="w-full py-6 text-lg font-semibold shadow-lg"
           >
             <Home className="w-5 h-5 mr-2" />

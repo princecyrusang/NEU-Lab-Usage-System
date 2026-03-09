@@ -60,7 +60,7 @@ export default function OnboardingPage() {
         title: "Profile Updated",
         description: "Your account setup is now complete.",
       });
-      router.push("/");
+      router.push("/dashboard");
     } catch (error: any) {
       toast({
         variant: "destructive",
