@@ -3,10 +3,10 @@
 
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LayoutDashboard, Users, BarChart3, LogOut, Menu, Loader2 } from "lucide-react";
+import { GraduationCap, LayoutDashboard, Users, BarChart3, LogOut, Menu, Loader2, Home } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 const NAV_ITEMS = [
@@ -18,9 +18,21 @@ const NAV_ITEMS = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { profile, loading, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  if (loading) {
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted && !loading && profile?.role !== "admin") {
+      router.push("/dashboard");
+    }
+  }, [isMounted, loading, profile, router]);
+
+  if (loading || !isMounted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#EEF1F6]">
         <Loader2 className="w-10 h-10 text-primary animate-spin" />

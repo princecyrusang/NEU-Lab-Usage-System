@@ -69,6 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       if (firebaseUser) {
         const email = firebaseUser.email?.toLowerCase() || "";
+        
+        // Strict domain check
         if (!email.endsWith("@neu.edu.ph")) {
           await signOut(firebaseAuth);
           setUser(null);

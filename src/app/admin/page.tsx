@@ -8,11 +8,22 @@ import { Users, UserX, CalendarDays, History, Loader2 } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
 import { useAuth } from "@/context/auth-context";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 
+/**
+ * AdminDashboard Component
+ * 
+ * Displays key library metrics. Uses an isMounted guard to prevent
+ * hydration mismatches between server and client date calculations.
+ */
 export default function AdminDashboard() {
   const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Use useMemo for date bounds to prevent hydration mismatches
   const { todayStart, weekStart, monthStart } = useMemo(() => {
@@ -48,7 +59,7 @@ export default function AdminDashboard() {
   }, [firestore, isConfirmedAdmin]);
   const { data: allVisits, isLoading: visitsLoading } = useCollection(visitsQuery);
 
-  if (authLoading) {
+  if (authLoading || !isMounted) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -65,6 +76,8 @@ export default function AdminDashboard() {
       </div>
     );
   }
+
+  const validUsers = users?.filter(u => u.email?.toLowerCase().endsWith("@neu.edu.ph")) || [];
 
   const stats = {
     today: allVisits?.filter(v => {
@@ -151,7 +164,7 @@ export default function AdminDashboard() {
              <div className="space-y-4">
                <div className="flex justify-between items-center py-2 border-b">
                  <span className="text-sm text-muted-foreground">Registered Users</span>
-                 <span className="font-bold">{users?.length || 0}</span>
+                 <span className="font-bold">{validUsers.length}</span>
                </div>
                <div className="flex justify-between items-center py-2 border-b">
                  <span className="text-sm text-muted-foreground">Active Sessions</span>
