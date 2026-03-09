@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { collection, query, where, orderBy, Query, DocumentData } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,8 @@ import {
   BookOpen, 
   Building,
   User as UserIcon,
-  SearchX
+  SearchX,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -25,6 +26,7 @@ export default function VisitHistoryPage() {
   const firestore = useFirestore();
 
   // Construct the appropriate query based on user role
+  // This memoized query strictly follows Firestore Security Rules
   const visitsQuery = useMemoFirebase(() => {
     if (!user || !profile || !firestore) return null;
 
@@ -35,15 +37,15 @@ export default function VisitHistoryPage() {
       return query(visitsRef, orderBy("timestamp", "desc"));
     }
 
-    // Regular users see only their own visits (required by security rules)
-    // The security rule "request.query.filters.userId == request.auth.uid" 
-    // forces this exact filter for non-admins.
+    // Regular users see only their own visits.
+    // SECURITY CRITICAL: The security rule "request.query.filters.userId == request.auth.uid" 
+    // requires this exact filter for non-admins to avoid a permission denial.
     return query(
       visitsRef,
       where("userId", "==", user.uid),
       orderBy("timestamp", "desc")
     );
-  }, [user, profile, firestore]);
+  }, [user?.uid, profile?.role, firestore]);
 
   const { data: visits, isLoading: visitsLoading, error } = useCollection(visitsQuery);
 
@@ -91,16 +93,20 @@ export default function VisitHistoryPage() {
 
           <div className="space-y-4">
             {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-24 w-full bg-white rounded-xl animate-pulse border shadow-sm" />
-                ))}
+              <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                <p className="text-muted-foreground font-medium">Retrieving visit records...</p>
               </div>
             ) : error ? (
               <Card className="border-destructive/20 bg-destructive/5">
                 <CardContent className="py-10 text-center">
-                  <p className="text-destructive font-medium">Unable to load history</p>
-                  <p className="text-sm text-muted-foreground mt-1">Please ensure you have permission to view this content.</p>
+                  <p className="text-destructive font-bold text-lg">Unable to load history</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {error.message || "Please ensure you have permission to view this content."}
+                  </p>
+                  <Link href="/">
+                    <Button variant="outline" className="mt-6">Return to Dashboard</Button>
+                  </Link>
                 </CardContent>
               </Card>
             ) : !visits || visits.length === 0 ? (
@@ -140,14 +146,14 @@ export default function VisitHistoryPage() {
                             </h4>
                             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                               <Calendar className="w-4 h-4" />
-                              {visit.timestamp ? format(visit.timestamp.toDate(), 'PPP') : 'Processing...'}
+                              {visit.timestamp?.toDate ? format(visit.timestamp.toDate(), 'PPP') : 'Processing...'}
                             </div>
                           </div>
 
                           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                             <span className="flex items-center gap-2 text-muted-foreground">
                               <Clock className="w-4 h-4 text-[#47C1EB]" />
-                              {visit.timestamp ? format(visit.timestamp.toDate(), 'p') : ''}
+                              {visit.timestamp?.toDate ? format(visit.timestamp.toDate(), 'p') : ''}
                             </span>
                             <span className="flex items-center gap-2 text-muted-foreground">
                               <Building className="w-4 h-4 text-[#47C1EB]" />
