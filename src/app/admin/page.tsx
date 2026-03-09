@@ -15,31 +15,31 @@ export default function AdminDashboard() {
   const weekStart = startOfWeek(new Date());
   const monthStart = startOfMonth(new Date());
 
-  // Strict role check for safety
-  const isAdmin = !authLoading && profile?.role === "admin";
+  // Strict role check for safety - ensures queries only run if authorization is confirmed
+  const isConfirmedAdmin = !authLoading && profile?.role === "admin";
 
   // Query all users - Only run if confirmed admin
   const usersQuery = useMemoFirebase(() => {
-    if (!isAdmin || !firestore) return null;
+    if (!isConfirmedAdmin || !firestore) return null;
     return collection(firestore, "users");
-  }, [firestore, isAdmin]);
+  }, [firestore, isConfirmedAdmin]);
   const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
 
   // Query blocked users - Only run if confirmed admin
   const blockedUsersQuery = useMemoFirebase(() => {
-    if (!isAdmin || !firestore) return null;
+    if (!isConfirmedAdmin || !firestore) return null;
     return query(collection(firestore, "users"), where("isBlocked", "==", true));
-  }, [firestore, isAdmin]);
+  }, [firestore, isConfirmedAdmin]);
   const { data: blockedUsers, isLoading: blockedLoading } = useCollection(blockedUsersQuery);
 
   // Query visits from TOP-LEVEL collection - Only run if confirmed admin
   const visitsQuery = useMemoFirebase(() => {
-    if (!isAdmin || !firestore) return null;
+    if (!isConfirmedAdmin || !firestore) return null;
     return collection(firestore, "visits");
-  }, [firestore, isAdmin]);
+  }, [firestore, isConfirmedAdmin]);
   const { data: allVisits, isLoading: visitsLoading } = useCollection(visitsQuery);
 
-  if (authLoading || usersLoading || blockedLoading || visitsLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -47,7 +47,15 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!isAdmin) return null;
+  if (!isConfirmedAdmin) return null;
+
+  if (usersLoading || blockedLoading || visitsLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   const stats = {
     today: allVisits?.filter(v => v.timestamp?.toDate() >= todayStart).length || 0,

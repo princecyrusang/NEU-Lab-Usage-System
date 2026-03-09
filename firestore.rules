@@ -54,12 +54,10 @@ service cloud.firestore {
       // Single document read
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       
-      // List rules with query constraints:
-      // Admins can list everything.
-      // Regular users can only list their own documents (requires a query filter on userId).
+      // List rules with explicit query constraint checks
       allow list: if isSignedIn() && (
         isAdmin() || 
-        resource.data.userId == request.auth.uid
+        (resource.data.userId == request.auth.uid)
       );
       
       // Users can only create visits for themselves if not blocked

@@ -35,7 +35,8 @@ export default function VisitHistoryPage() {
   // This memoized query strictly follows Firestore Security Rules to prevent permission denials.
   const visitsQuery = useMemoFirebase(() => {
     // Only proceed if auth and profile data are fully loaded and available.
-    if (!user || !profile || !firestore) return null;
+    // This prevents unfiltered list attempts before the role is determined.
+    if (authLoading || !user || !profile || !firestore) return null;
 
     const visitsRef = collection(firestore, "visits");
 
@@ -52,7 +53,7 @@ export default function VisitHistoryPage() {
       where("userId", "==", user.uid),
       orderBy("timestamp", "desc")
     );
-  }, [user?.uid, profile?.role, firestore]);
+  }, [user?.uid, profile?.role, firestore, authLoading]);
 
   const { data: visits, isLoading: visitsLoading, error } = useCollection(visitsQuery);
 
