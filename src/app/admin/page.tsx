@@ -6,26 +6,40 @@ import { query, where, collection } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserX, CalendarDays, History } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
+import { useAuth } from "@/context/auth-context";
 
 export default function AdminDashboard() {
+  const { profile } = useAuth();
   const firestore = useFirestore();
   const todayStart = startOfDay(new Date());
   const weekStart = startOfWeek(new Date());
   const monthStart = startOfMonth(new Date());
 
+  // Defensive guards for admin-only queries
+  const isAdmin = profile?.role === "admin";
+
   // Query all users
-  const usersQuery = useMemoFirebase(() => collection(firestore, "users"), [firestore]);
+  const usersQuery = useMemoFirebase(() => {
+    if (!isAdmin || !firestore) return null;
+    return collection(firestore, "users");
+  }, [firestore, isAdmin]);
   const { data: users } = useCollection(usersQuery);
 
   // Query blocked users
-  const blockedUsersQuery = useMemoFirebase(() => 
-    query(collection(firestore, "users"), where("isBlocked", "==", true)), [firestore]
-  );
+  const blockedUsersQuery = useMemoFirebase(() => {
+    if (!isAdmin || !firestore) return null;
+    return query(collection(firestore, "users"), where("isBlocked", "==", true));
+  }, [firestore, isAdmin]);
   const { data: blockedUsers } = useCollection(blockedUsersQuery);
 
   // Query visits from TOP-LEVEL collection
-  const visitsQuery = useMemoFirebase(() => collection(firestore, "visits"), [firestore]);
+  const visitsQuery = useMemoFirebase(() => {
+    if (!isAdmin || !firestore) return null;
+    return collection(firestore, "visits");
+  }, [firestore, isAdmin]);
   const { data: allVisits } = useCollection(visitsQuery);
+
+  if (!isAdmin) return null;
 
   const stats = {
     today: allVisits?.filter(v => v.timestamp?.toDate() >= todayStart).length || 0,

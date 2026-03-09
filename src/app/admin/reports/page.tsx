@@ -5,15 +5,24 @@ import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
 import { collection, query } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { useAuth } from "@/context/auth-context";
 
 const COLORS = ['#0C46A3', '#47C1EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export default function ReportsPage() {
+  const { profile } = useAuth();
   const firestore = useFirestore();
   
-  // Query from TOP-LEVEL visits collection
-  const visitsQuery = useMemoFirebase(() => collection(firestore, "visits"), [firestore]);
+  const isAdmin = profile?.role === "admin";
+
+  // Query from TOP-LEVEL visits collection with defensive guard
+  const visitsQuery = useMemoFirebase(() => {
+    if (!isAdmin || !firestore) return null;
+    return collection(firestore, "visits");
+  }, [firestore, isAdmin]);
   const { data: visits } = useCollection(visitsQuery);
+
+  if (!isAdmin) return null;
 
   // Group by Reason
   const reasonData = visits?.reduce((acc: any[], visit) => {
