@@ -75,11 +75,24 @@ export default function LaboratoryUsagePage() {
   /**
    * handleConfirmUsage
    * 
-   * Formats the usage data explicitly and attempts to save to Firestore.
-   * Uses a standard Date object for the timestamp and catches raw errors.
+   * Updated to strictly follow requested debugging constraints:
+   * 1. Uses exactly the requested keys.
+   * 2. Uses .toISOString() for timestamp.
+   * 3. Wraps in an explicit auth check.
+   * 4. Logs raw error to console.
    */
   const handleConfirmUsage = () => {
-    if (!room || !user || !profile || !firestore || !isIdVerified) {
+    // Explicit Auth State check
+    if (!user || !profile || !firestore) {
+       toast({
+        variant: "destructive",
+        title: "Session Error",
+        description: "You must be signed in to perform this action.",
+      });
+      return;
+    }
+
+    if (!room || !isIdVerified) {
       if (!isIdVerified) {
         toast({
           variant: "destructive",
@@ -92,31 +105,31 @@ export default function LaboratoryUsagePage() {
 
     setIsSubmitting(true);
     
-    // Explicitly define the data object with required keys
+    // Explicitly defined data object with exactly requested keys
     const usageData = {
       userId: user.uid,
-      fullName: profile.fullName || user.displayName || "Unknown Professor",
+      fullName: profile.fullName || user.displayName || "",
       email: user.email,
-      collegeOffice: profile.collegeOffice || "Unassigned Office",
+      collegeOffice: profile.collegeOffice || "College of Computer Studies",
       roomNumber: room,
-      timestamp: new Date(), // Using standard JS Date instead of serverTimestamp()
+      timestamp: new Date().toISOString(), 
     };
 
     const usageRef = collection(firestore, "lab_usage");
     
-    // Attempting create operation with raw error handling
+    // Use addDoc directly for the simplified path
     addDoc(usageRef, usageData)
       .then(() => {
         router.push(`/confirmation?room=${encodeURIComponent(room)}`);
       })
       .catch((error) => {
-        // Logging raw error to console for precise debugging of 'Missing or insufficient permissions'
+        // Log raw error for debugging
         console.error("RAW FIRESTORE ERROR:", error);
         
         toast({
           variant: "destructive",
           title: "Submission Error",
-          description: error.message || "Permission denied. Please ensure your profile is fully set up and institutional access is active.",
+          description: error.message || "Permission denied. Check console for raw error.",
         });
       })
       .finally(() => {
