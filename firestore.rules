@@ -34,39 +34,25 @@ service cloud.firestore {
 
     // --- Collection Rules ---
 
-    /**
-     * @description Rules for user profile documents.
-     */
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      
-      // Strict domain check on creation
       allow create: if isOwner(userId) && isInstitutionalEmail();
-      
       allow update: if (isOwner(userId) && isNotBlocked() && 
                       request.resource.data.role == resource.data.role && 
                       request.resource.data.isBlocked == resource.data.isBlocked) || isAdmin();
-      
       allow delete: if isAdmin();
     }
 
-    /**
-     * @description Rules for library visits (top-level collection).
-     */
-    match /visits/{visitId} {
+    match /lab_usage/{logId} {
       allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      
       allow list: if isSignedIn() && (
         isAdmin() || 
         (resource.data.userId == request.auth.uid)
       );
-      
-      // Users can only create visits for themselves if not blocked and have valid domain
       allow create: if isSignedIn() && isNotBlocked() && 
                     isInstitutionalEmail() &&
                     request.resource.data.userId == request.auth.uid;
-      
       allow update, delete: if isAdmin();
     }
   }

@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/auth-context';
@@ -5,8 +6,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'NEU Portal Access',
-  description: 'Secure Institutional Portal for New Era University',
+  title: 'NEU Lab Usage System',
+  description: 'Institutional Laboratory Room Monitoring and Log System',
 };
 
 export default function RootLayout({

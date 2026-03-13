@@ -5,39 +5,36 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
       "type": "object",
-      "description": "Represents a user's profile within the NEU Library Visitor App, storing their institutional details and access status.",
+      "description": "Represents a professor or faculty member's profile within the NEU Laboratory Usage Log system.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the UserProfile entity. This typically corresponds to the Firebase Authentication UID."
+          "description": "Unique identifier for the UserProfile entity (Firebase UID)."
         },
         "email": {
           "type": "string",
-          "description": "The user's institutional email address (@neu.edu.ph), used for login and identification.",
+          "description": "The user's institutional email address (@neu.edu.ph).",
           "format": "email"
         },
         "fullName": {
           "type": "string",
-          "description": "The user's full name, typically retrieved from their Google profile."
+          "description": "The user's full name."
         },
         "role": {
           "type": "string",
-          "description": "The role of the user within the application (e.g., admin, regular user).",
-          "items": {
-            "type": "string"
-          }
+          "description": "The role of the user (e.g., admin, professor)."
         },
         "collegeOffice": {
           "type": "string",
-          "description": "The college or office the user belongs to, selected during the initial onboarding process."
+          "description": "The college or department the professor belongs to."
         },
         "isSetupComplete": {
           "type": "boolean",
-          "description": "Indicates whether the user has completed their initial onboarding setup (e.g., selected college/office). Set to 'false' on first login."
+          "description": "Onboarding status."
         },
         "isBlocked": {
           "type": "boolean",
-          "description": "Indicates whether the user is blocked by an administrator from entering the library. Defaults to 'false'."
+          "description": "Access restriction status."
         }
       },
       "required": [
@@ -50,39 +47,34 @@
         "isBlocked"
       ]
     },
-    "Visit": {
+    "LabUsage": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Visit",
+      "title": "LabUsage",
       "type": "object",
-      "description": "Records a single visit of a user to the NEU Library, including the reason and timestamp.",
+      "description": "Records a single usage log of a laboratory room by a professor.",
       "properties": {
         "id": {
-          "type": "string",
-          "description": "Unique identifier for the Visit entity."
+          "type": "string"
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the UserProfile who made this visit."
+          "description": "Reference to the professor's UserProfile."
         },
         "fullName": {
-          "type": "string",
-          "description": "Denormalized full name of the visitor."
+          "type": "string"
         },
         "email": {
-          "type": "string",
-          "description": "Denormalized email of the visitor."
+          "type": "string"
         },
         "collegeOffice": {
-          "type": "string",
-          "description": "Denormalized college or office of the visitor."
+          "type": "string"
         },
-        "reason": {
+        "roomNumber": {
           "type": "string",
-          "description": "The primary reason for the user's visit to the library."
+          "description": "The laboratory room number being used."
         },
         "timestamp": {
           "type": "string",
-          "description": "The date and time when the user's visit was recorded.",
           "format": "date-time"
         }
       },
@@ -91,14 +83,13 @@
         "fullName",
         "email",
         "collegeOffice",
-        "reason",
+        "roomNumber",
         "timestamp"
       ]
     }
   },
   "auth": {
     "providers": [
-      "password",
       "google.com"
     ]
   },
@@ -111,20 +102,20 @@
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Stores individual user profiles. Access is restricted to self or admin."
+          "description": "User profiles for faculty and administrators."
         }
       },
       {
-        "path": "/visits/{visitId}",
+        "path": "/lab_usage/{logId}",
         "definition": {
-          "entityName": "Visit",
+          "entityName": "LabUsage",
           "schema": {
-            "$ref": "#/backend/entities/Visit"
+            "$ref": "#/backend/entities/LabUsage"
           },
-          "description": "Global collection of all library visits. Users can create visits for themselves, admins can view all."
+          "description": "Global collection of laboratory usage logs."
         }
       }
     ],
-    "reasoning": "Moving visits to a top-level collection simplifies global analytics and reporting for administrators while still maintaining strict user-based ownership via the 'userId' field for security rules."
+    "reasoning": "Standardizing on a top-level collection for laboratory usage allows for comprehensive institutional reporting and simplified role-based security filtering."
   }
 }

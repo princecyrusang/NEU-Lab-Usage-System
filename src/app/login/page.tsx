@@ -1,9 +1,10 @@
+
 "use client";
 
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, ShieldCheck } from "lucide-react";
+import { FlaskConical, ShieldCheck, QrCode } from "lucide-react";
 
 export default function LoginPage() {
   const { login, loading } = useAuth();
@@ -13,17 +14,17 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-2xl border-none">
         <CardHeader className="text-center space-y-4 pt-10">
           <div className="mx-auto w-20 h-20 bg-primary flex items-center justify-center rounded-2xl shadow-lg">
-            <GraduationCap className="w-12 h-12 text-white" />
+            <FlaskConical className="w-12 h-12 text-white" />
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-3xl font-bold tracking-tight text-primary">NEU Library</CardTitle>
-            <CardDescription className="text-base">Institutional Visitor Portal</CardDescription>
+            <CardTitle className="text-3xl font-bold tracking-tight text-primary">NEU Laboratory</CardTitle>
+            <CardDescription className="text-base">Institutional Faculty Usage Log</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-6 pb-10">
           <div className="flex items-center gap-3 p-4 bg-accent/30 rounded-lg text-sm text-primary font-medium border border-accent">
             <ShieldCheck className="w-5 h-5 shrink-0" />
-            <p>Access is restricted to verified @neu.edu.ph institutional email accounts only.</p>
+            <p>Access restricted to verified faculty (@neu.edu.ph) only. QR scanner enabled after login.</p>
           </div>
           
           <Button 
@@ -35,7 +36,7 @@ export default function LoginPage() {
             {loading ? (
               <span className="flex items-center gap-2">
                 <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                Signing in...
+                Verifying Credentials...
               </span>
             ) : (
               <>
@@ -57,13 +58,27 @@ export default function LoginPage() {
                     fill="#EA4335"
                   />
                 </svg>
-                Sign in with Google
+                Sign in with NEU Account
               </>
             )}
           </Button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">Or using ID</span>
+            </div>
+          </div>
+
+          <div className="p-4 bg-muted/50 rounded-lg flex items-center justify-center gap-2 text-muted-foreground text-sm">
+             <QrCode className="w-4 h-4" />
+             <span>ID Scanning available for registered kiosks</span>
+          </div>
           
           <p className="text-center text-xs text-muted-foreground pt-4">
-            By signing in, you agree to comply with the university's Acceptable Use Policy and Data Privacy guidelines.
+            Authorized access only. Data collection is governed by NEU Privacy Policy.
           </p>
         </CardContent>
       </Card>

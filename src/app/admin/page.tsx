@@ -2,30 +2,27 @@
 "use client";
 
 import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
-import { query, where, collection } from "firebase/firestore";
+import { query, where, collection, orderBy } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, UserX, CalendarDays, History, Loader2 } from "lucide-react";
+import { Users, FlaskConical, CalendarDays, History, Loader2, Search } from "lucide-react";
 import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
 import { useAuth } from "@/context/auth-context";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { useMemo, useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-/**
- * AdminDashboard Component
- * 
- * Displays key library metrics. Uses an isMounted guard to prevent
- * hydration mismatches between server and client date calculations.
- */
 export default function AdminDashboard() {
   const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
   const [isMounted, setIsMounted] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateRange, setDateRange] = useState("all");
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Use useMemo for date bounds to prevent hydration mismatches
   const { todayStart, weekStart, monthStart } = useMemo(() => {
     const now = new Date();
     return {
@@ -35,31 +32,44 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  // Strict role check for safety
   const isConfirmedAdmin = !authLoading && profile?.role === "admin";
 
-  // Query all users
-  const usersQuery = useMemoFirebase(() => {
+  const usageQuery = useMemoFirebase(() => {
     if (!isConfirmedAdmin || !firestore) return null;
-    return collection(firestore, "users");
+    return query(collection(firestore, "lab_usage"), orderBy("timestamp", "desc"));
   }, [firestore, isConfirmedAdmin]);
-  const { data: users, isLoading: usersLoading } = useCollection(usersQuery);
+  const { data: allUsage, isLoading: usageLoading } = useCollection(usageQuery);
 
-  // Query blocked users
-  const blockedUsersQuery = useMemoFirebase(() => {
-    if (!isConfirmedAdmin || !firestore) return null;
-    return query(collection(firestore, "users"), where("isBlocked", "==", true));
-  }, [firestore, isConfirmedAdmin]);
-  const { data: blockedUsers, isLoading: blockedLoading } = useCollection(blockedUsersQuery);
+  const stats = useMemo(() => {
+    if (!allUsage) return { today: 0, week: 0, month: 0, total: 0 };
+    return {
+      today: allUsage.filter(v => (v.timestamp?.toDate?.() || new Date(0)) >= todayStart).length,
+      week: allUsage.filter(v => (v.timestamp?.toDate?.() || new Date(0)) >= weekStart).length,
+      month: allUsage.filter(v => (v.timestamp?.toDate?.() || new Date(0)) >= monthStart).length,
+      total: allUsage.length
+    };
+  }, [allUsage, todayStart, weekStart, monthStart]);
 
-  // Query visits
-  const visitsQuery = useMemoFirebase(() => {
-    if (!isConfirmedAdmin || !firestore) return null;
-    return collection(firestore, "visits");
-  }, [firestore, isConfirmedAdmin]);
-  const { data: allVisits, isLoading: visitsLoading } = useCollection(visitsQuery);
+  const filteredLogs = useMemo(() => {
+    if (!allUsage) return [];
+    let filtered = allUsage;
 
-  if (authLoading || !isMounted) {
+    if (searchTerm) {
+      filtered = filtered.filter(log => 
+        log.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.roomNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (dateRange !== "all") {
+      const boundary = dateRange === "today" ? todayStart : dateRange === "week" ? weekStart : monthStart;
+      filtered = filtered.filter(log => (log.timestamp?.toDate?.() || new Date(0)) >= boundary);
+    }
+
+    return filtered;
+  }, [allUsage, searchTerm, dateRange, todayStart, weekStart, monthStart]);
+
+  if (authLoading || !isMounted || usageLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -69,49 +79,18 @@ export default function AdminDashboard() {
 
   if (!isConfirmedAdmin) return null;
 
-  if (usersLoading || blockedLoading || visitsLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-10 h-10 text-primary animate-spin" />
-      </div>
-    );
-  }
-
-  const validUsers = users?.filter(u => u.email?.toLowerCase().endsWith("@neu.edu.ph")) || [];
-
-  const stats = {
-    today: allVisits?.filter(v => {
-      const date = v.timestamp?.toDate?.();
-      return date && date >= todayStart;
-    }).length || 0,
-    week: allVisits?.filter(v => {
-      const date = v.timestamp?.toDate?.();
-      return date && date >= weekStart;
-    }).length || 0,
-    month: allVisits?.filter(v => {
-      const date = v.timestamp?.toDate?.();
-      return date && date >= monthStart;
-    }).length || 0,
-    blocked: blockedUsers?.length || 0,
-  };
-
   const statCards = [
-    { label: "Visitors Today", value: stats.today, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-100" },
-    { label: "Visitors This Week", value: stats.week, icon: History, color: "text-indigo-600", bg: "bg-indigo-100" },
-    { label: "Visitors This Month", value: stats.month, icon: Users, color: "text-green-600", bg: "bg-green-100" },
-    { label: "Blocked Users", value: stats.blocked, icon: UserX, color: "text-red-600", bg: "bg-red-100" },
+    { label: "Today's Utilization", value: stats.today, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-100" },
+    { label: "Weekly Sessions", value: stats.week, icon: History, color: "text-indigo-600", bg: "bg-indigo-100" },
+    { label: "Monthly Logins", value: stats.month, icon: FlaskConical, color: "text-green-600", bg: "bg-green-100" },
+    { label: "Total Institutional Usage", value: stats.total, icon: Users, color: "text-orange-600", bg: "bg-orange-100" },
   ];
-
-  const recentVisits = allVisits
-    ?.filter(v => !!v.timestamp?.toDate)
-    .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0))
-    .slice(0, 5);
 
   return (
     <div className="space-y-8">
       <AdminPageHeader 
-        title="System Overview" 
-        description="Real-time library usage statistics and administrative controls." 
+        title="Laboratory Usage Statistics" 
+        description="Monitor faculty utilization of laboratory rooms and specialized equipment." 
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -130,51 +109,65 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-none shadow-md">
-          <CardHeader>
-            <CardTitle>Recent Visits</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentVisits && recentVisits.length > 0 ? (
-                recentVisits.map((visit) => (
-                  <div key={visit.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <div>
-                      <p className="font-semibold text-sm">{visit.fullName || "Unknown Visitor"}</p>
-                      <p className="text-xs text-muted-foreground">{visit.reason || "No reason specified"}</p>
-                    </div>
-                    <p className="text-xs font-medium text-primary">
-                      {visit.timestamp?.toDate ? visit.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">No recent visits recorded.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input 
+              placeholder="Search by Professor Name or Room..." 
+              className="pl-10 h-12"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-full md:w-[200px] h-12">
+              <SelectValue placeholder="Date Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         <Card className="border-none shadow-md">
           <CardHeader>
-            <CardTitle>System Activity</CardTitle>
+            <CardTitle>Detailed Usage Logs</CardTitle>
           </CardHeader>
           <CardContent>
-             <div className="space-y-4">
-               <div className="flex justify-between items-center py-2 border-b">
-                 <span className="text-sm text-muted-foreground">Registered Users</span>
-                 <span className="font-bold">{validUsers.length}</span>
-               </div>
-               <div className="flex justify-between items-center py-2 border-b">
-                 <span className="text-sm text-muted-foreground">Active Sessions</span>
-                 <span className="font-bold">{stats.today}</span>
-               </div>
-               <div className="flex justify-between items-center py-2 border-b">
-                 <span className="text-sm text-muted-foreground">Library Capacity Utilization</span>
-                 <span className="font-bold">Normal</span>
-               </div>
-             </div>
+            <div className="space-y-4">
+              {filteredLogs.length > 0 ? (
+                filteredLogs.map((log) => (
+                  <div key={log.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
+                        {log.fullName?.[0]}
+                      </div>
+                      <div>
+                        <p className="font-bold">{log.fullName}</p>
+                        <p className="text-xs text-muted-foreground">{log.roomNumber} • {log.collegeOffice}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-primary">
+                        {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleDateString() : '...'}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-20 text-muted-foreground">
+                   <FlaskConical className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                   <p>No usage logs found matching your criteria.</p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

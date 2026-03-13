@@ -7,63 +7,61 @@ import { collection } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useAuth } from "@/context/auth-context";
-import { Loader2 } from "lucide-react";
+import { Loader2, FlaskConical } from "lucide-react";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 
 const COLORS = ['#0C46A3', '#47C1EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
-export default function ReportsPage() {
+export default function LaboratoryReportsPage() {
   const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
   const [isMounted, setIsMounted] = useState(false);
 
-  // Recharts requires browser environment, so wait until mounted
   useEffect(() => {
     setIsMounted(true);
   }, []);
   
   const isAdmin = profile?.role === "admin";
 
-  // Query from TOP-LEVEL visits collection
-  const visitsQuery = useMemoFirebase(() => {
+  const usageQuery = useMemoFirebase(() => {
     if (!isAdmin || !firestore) return null;
-    return collection(firestore, "visits");
+    return collection(firestore, "lab_usage");
   }, [firestore, isAdmin]);
-  const { data: visits, isLoading: visitsLoading } = useCollection(visitsQuery);
+  const { data: logs, isLoading: usageLoading } = useCollection(usageQuery);
 
   const analyticsData = useMemo(() => {
-    if (!visits) return { reasonData: [], collegeData: [], visitsByDay: [] };
+    if (!logs) return { roomData: [], collegeData: [], usageByDay: [] };
 
-    // Group by Reason
-    const reasonData = visits.reduce((acc: any[], visit) => {
-      if (!visit.reason) return acc;
-      const existing = acc.find(a => a.name === visit.reason);
+    // Group by Room
+    const roomData = logs.reduce((acc: any[], log) => {
+      if (!log.roomNumber) return acc;
+      const existing = acc.find(a => a.name === log.roomNumber);
       if (existing) {
         existing.value += 1;
       } else {
-        acc.push({ name: visit.reason, value: 1 });
+        acc.push({ name: log.roomNumber, value: 1 });
+      }
+      return acc;
+    }, []).sort((a, b) => b.value - a.value);
+
+    // Group by College/Department
+    const collegeData = logs.reduce((acc: any[], log) => {
+      if (!log.collegeOffice) return acc;
+      const existing = acc.find(a => a.name === log.collegeOffice);
+      if (existing) {
+        existing.value += 1;
+      } else {
+        acc.push({ name: log.collegeOffice, value: 1 });
       }
       return acc;
     }, []);
 
-    // Group by College
-    const collegeData = visits.reduce((acc: any[], visit) => {
-      if (!visit.collegeOffice) return acc;
-      const existing = acc.find(a => a.name === visit.collegeOffice);
-      if (existing) {
-        existing.value += 1;
-      } else {
-        acc.push({ name: visit.collegeOffice, value: 1 });
-      }
-      return acc;
-    }, []);
-
-    // Visits per day - use a stable date format for sorting
-    const visitsByDay = visits.reduce((acc: any[], visit) => {
-      const dateObj = visit.timestamp?.toDate?.();
+    // Usage per day
+    const usageByDay = logs.reduce((acc: any[], log) => {
+      const dateObj = log.timestamp?.toDate?.();
       if (!dateObj) return acc;
       
-      const dateKey = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+      const dateKey = dateObj.toISOString().split('T')[0];
       const existing = acc.find(a => a.date === dateKey);
       if (existing) {
         existing.count += 1;
@@ -73,10 +71,10 @@ export default function ReportsPage() {
       return acc;
     }, []).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-    return { reasonData, collegeData, visitsByDay };
-  }, [visits]);
+    return { roomData, collegeData, usageByDay };
+  }, [logs]);
 
-  if (authLoading || visitsLoading || !isMounted) {
+  if (authLoading || usageLoading || !isMounted) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -86,25 +84,25 @@ export default function ReportsPage() {
 
   if (!isAdmin) return null;
 
-  const { reasonData, collegeData, visitsByDay } = analyticsData;
+  const { roomData, collegeData, usageByDay } = analyticsData;
 
   return (
     <div className="space-y-8">
       <AdminPageHeader 
-        title="Library Reports" 
-        description="Visual data analysis of library visits, usage trends, and user demographics." 
+        title="Institutional Laboratory Reports" 
+        description="Data analysis of room utilization, faculty activity, and departmental engagement." 
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-none shadow-md">
           <CardHeader>
-            <CardTitle>Reason for Visiting Distribution</CardTitle>
+            <CardTitle>Room Utilization Distribution</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={reasonData}
+                  data={roomData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -113,7 +111,7 @@ export default function ReportsPage() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {reasonData.map((entry: any, index: number) => (
+                  {roomData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
@@ -126,11 +124,11 @@ export default function ReportsPage() {
 
         <Card className="border-none shadow-md">
           <CardHeader>
-            <CardTitle>Visits per Day</CardTitle>
+            <CardTitle>Usage Frequency Trends</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={visitsByDay}>
+              <BarChart data={usageByDay}>
                 <XAxis dataKey="date" />
                 <YAxis />
                 <Tooltip />
@@ -142,13 +140,13 @@ export default function ReportsPage() {
 
         <Card className="border-none shadow-md lg:col-span-2">
           <CardHeader>
-            <CardTitle>Visitors per College / Office</CardTitle>
+            <CardTitle>Engagement by College / Department</CardTitle>
           </CardHeader>
           <CardContent className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={collegeData} layout="vertical">
                 <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={150} />
+                <YAxis dataKey="name" type="category" width={180} />
                 <Tooltip />
                 <Bar dataKey="value" fill="#47C1EB" radius={[0, 4, 4, 0]} />
               </BarChart>

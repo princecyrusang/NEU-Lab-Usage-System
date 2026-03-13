@@ -6,25 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { 
   LogOut, 
-  GraduationCap, 
+  FlaskConical, 
   User, 
-  ClipboardList, 
+  ClipboardCheck, 
   History, 
   Settings, 
   ShieldCheck,
   Building,
   Mail,
-  ChevronRight
+  ChevronRight,
+  QrCode
 } from "lucide-react";
 import Link from "next/link";
 
-/**
- * HomeDashboard Component
- * 
- * The main landing page after login. Displays user profile details
- * and role-based quick actions.
- */
-export default function HomeDashboard() {
+export default function LaboratoryDashboard() {
   const { profile, logout, loading } = useAuth();
 
   if (loading || !profile) {
@@ -42,38 +37,37 @@ export default function HomeDashboard() {
 
   const ALL_ACTIONS = [
     {
-      title: "Log Library Visit",
-      description: "Record your entry to the library facilities.",
-      icon: ClipboardList,
+      title: "Log Laboratory Usage",
+      description: "Scan your ID to record room entry and start session.",
+      icon: QrCode,
       href: "/check-in",
-      color: "bg-blue-500",
-      textColor: "text-blue-500",
+      color: "bg-blue-600",
+      textColor: "text-blue-600",
       borderColor: "border-blue-200",
       adminOnly: false,
     },
     {
-      title: "Visit History",
-      description: "Review institutional visit records and logs.",
+      title: "Usage Logs",
+      description: "Review institutional laboratory usage history.",
       icon: History,
       href: "/history",
-      color: "bg-indigo-500",
-      textColor: "text-indigo-500",
+      color: "bg-indigo-600",
+      textColor: "text-indigo-600",
       borderColor: "border-indigo-200",
       adminOnly: true,
     },
     {
-      title: "Profile Settings",
-      description: "Manage your institutional affiliation details.",
+      title: "Faculty Profile",
+      description: "Manage your institutional and college details.",
       icon: Settings,
       href: "/profile",
-      color: "bg-slate-500",
-      textColor: "text-slate-500",
+      color: "bg-slate-600",
+      textColor: "text-slate-600",
       borderColor: "border-slate-200",
       adminOnly: false,
     },
   ];
 
-  // Filter actions based on the user's role
   const quickActions = ALL_ACTIONS.filter(action => !action.adminOnly || isAdmin);
 
   return (
@@ -81,8 +75,8 @@ export default function HomeDashboard() {
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <GraduationCap className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-tight">NEU Library</h1>
+            <FlaskConical className="w-8 h-8" />
+            <h1 className="text-xl font-bold tracking-tight">NEU Laboratory</h1>
           </div>
           <Button 
             variant="ghost" 
@@ -98,8 +92,8 @@ export default function HomeDashboard() {
       <main className="container mx-auto px-4 py-8 max-w-4xl flex-1">
         <div className="space-y-8">
           <div>
-            <h2 className="text-3xl font-bold text-primary">Welcome, {profile.fullName.split(' ')[0]}!</h2>
-            <p className="text-muted-foreground">Access your institutional library services below.</p>
+            <h2 className="text-3xl font-bold text-primary">Professor {profile.fullName.split(' ')[0]}</h2>
+            <p className="text-muted-foreground">Manage laboratory room sessions and usage logs.</p>
           </div>
 
           <Card className="border-none shadow-md overflow-hidden">
@@ -148,7 +142,7 @@ export default function HomeDashboard() {
                       <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     <h3 className="text-lg font-bold mb-1">Admin Dashboard</h3>
-                    <p className="text-sm text-muted-foreground">Manage users, view global analytics, and generate reports.</p>
+                    <p className="text-sm text-muted-foreground">Laboratory Usage Statistics and room management.</p>
                   </CardContent>
                 </Card>
               </Link>
@@ -159,7 +153,7 @@ export default function HomeDashboard() {
 
       <footer className="border-t py-6 mt-12 bg-white/50">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-xs text-muted-foreground">New Era University Library • Institutional Access Portal</p>
+          <p className="text-xs text-muted-foreground">New Era University • Laboratory Usage Monitoring System</p>
         </div>
       </footer>
     </div>
