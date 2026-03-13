@@ -133,7 +133,9 @@ export default function LaboratoryHistoryPage() {
             ) : (
               <div className="grid gap-4">
                 {usageLogs.map((log) => {
-                  const logDate = log.timestamp?.toDate?.();
+                  const logDate = log.timestamp?.toDate ? log.timestamp.toDate() : new Date(log.timestamp);
+                  const isValidDate = !isNaN(logDate.getTime());
+
                   return (
                     <Card key={log.id} className="hover:shadow-lg transition-all border-none shadow-sm overflow-hidden group">
                       <div className="h-1 bg-[#47C1EB] w-0 group-hover:w-full transition-all duration-300" />
@@ -150,14 +152,14 @@ export default function LaboratoryHistoryPage() {
                               </h4>
                               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                                 <Calendar className="w-4 h-4" />
-                                {logDate ? format(logDate, 'PPP') : 'Processing...'}
+                                {isValidDate ? format(logDate, 'PPP') : ''}
                               </div>
                             </div>
 
                             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                               <span className="flex items-center gap-2 text-muted-foreground">
                                 <Clock className="w-4 h-4 text-[#47C1EB]" />
-                                {logDate ? format(logDate, 'p') : ''}
+                                {isValidDate ? format(logDate, 'p') : ''}
                               </span>
                               <span className="flex items-center gap-2 text-muted-foreground">
                                 <Building className="w-4 h-4 text-[#47C1EB]" />

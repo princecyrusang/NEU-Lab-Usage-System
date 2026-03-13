@@ -32,6 +32,8 @@ export default function LaboratoryReportsPage() {
   const analyticsData = useMemo(() => {
     if (!logs) return { roomData: [], collegeData: [], usageByDay: [] };
 
+    const getLogDate = (ts: any) => ts?.toDate ? ts.toDate() : new Date(ts);
+
     // Group by Room
     const roomData = logs.reduce((acc: any[], log) => {
       if (!log.roomNumber) return acc;
@@ -58,8 +60,8 @@ export default function LaboratoryReportsPage() {
 
     // Usage per day
     const usageByDay = logs.reduce((acc: any[], log) => {
-      const dateObj = log.timestamp?.toDate?.();
-      if (!dateObj) return acc;
+      const dateObj = getLogDate(log.timestamp);
+      if (!dateObj || isNaN(dateObj.getTime())) return acc;
       
       const dateKey = dateObj.toISOString().split('T')[0];
       const existing = acc.find(a => a.date === dateKey);

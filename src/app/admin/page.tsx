@@ -5,7 +5,7 @@ import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
 import { query, where, collection, orderBy } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FlaskConical, CalendarDays, History, Loader2, Search } from "lucide-react";
-import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
+import { startOfDay, startOfWeek, startOfMonth, format } from "date-fns";
 import { useAuth } from "@/context/auth-context";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { useMemo, useState, useEffect } from "react";
@@ -42,10 +42,13 @@ export default function AdminDashboard() {
 
   const stats = useMemo(() => {
     if (!allUsage) return { today: 0, week: 0, month: 0, total: 0 };
+    
+    const getLogDate = (ts: any) => ts?.toDate ? ts.toDate() : new Date(ts);
+
     return {
-      today: allUsage.filter(v => (v.timestamp?.toDate?.() || new Date(0)) >= todayStart).length,
-      week: allUsage.filter(v => (v.timestamp?.toDate?.() || new Date(0)) >= weekStart).length,
-      month: allUsage.filter(v => (v.timestamp?.toDate?.() || new Date(0)) >= monthStart).length,
+      today: allUsage.filter(v => getLogDate(v.timestamp) >= todayStart).length,
+      week: allUsage.filter(v => getLogDate(v.timestamp) >= weekStart).length,
+      month: allUsage.filter(v => getLogDate(v.timestamp) >= monthStart).length,
       total: allUsage.length
     };
   }, [allUsage, todayStart, weekStart, monthStart]);
@@ -53,6 +56,8 @@ export default function AdminDashboard() {
   const filteredLogs = useMemo(() => {
     if (!allUsage) return [];
     let filtered = allUsage;
+
+    const getLogDate = (ts: any) => ts?.toDate ? ts.toDate() : new Date(ts);
 
     if (searchTerm) {
       filtered = filtered.filter(log => 
@@ -63,7 +68,7 @@ export default function AdminDashboard() {
 
     if (dateRange !== "all") {
       const boundary = dateRange === "today" ? todayStart : dateRange === "week" ? weekStart : monthStart;
-      filtered = filtered.filter(log => (log.timestamp?.toDate?.() || new Date(0)) >= boundary);
+      filtered = filtered.filter(log => getLogDate(log.timestamp) >= boundary);
     }
 
     return filtered;
@@ -140,27 +145,32 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="space-y-4">
               {filteredLogs.length > 0 ? (
-                filteredLogs.map((log) => (
-                  <div key={log.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
-                        {log.fullName?.[0]}
+                filteredLogs.map((log) => {
+                  const logDate = log.timestamp?.toDate ? log.timestamp.toDate() : new Date(log.timestamp);
+                  const isValidDate = !isNaN(logDate.getTime());
+
+                  return (
+                    <div key={log.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold">
+                          {log.fullName?.[0] || "?"}
+                        </div>
+                        <div>
+                          <p className="font-bold">{log.fullName}</p>
+                          <p className="text-xs text-muted-foreground">{log.roomNumber} • {log.collegeOffice}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold">{log.fullName}</p>
-                        <p className="text-xs text-muted-foreground">{log.roomNumber} • {log.collegeOffice}</p>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-primary">
+                          {isValidDate ? logDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {isValidDate ? logDate.toLocaleDateString() : ''}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-primary">
-                        {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleDateString() : '...'}
-                      </p>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-20 text-muted-foreground">
                    <FlaskConical className="w-12 h-12 mx-auto mb-4 opacity-20" />
