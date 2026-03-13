@@ -3,15 +3,14 @@
 
 import { useAuth } from "@/context/auth-context";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, orderBy } from "firebase/firestore";
+import { collection, query, orderBy, where } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
-  GraduationCap, 
+  FlaskConical, 
   ArrowLeft, 
   Calendar, 
   Clock, 
-  BookOpen, 
   Building,
   User as UserIcon,
   SearchX,
@@ -23,27 +22,28 @@ import { format } from "date-fns";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 
 /**
- * VisitHistoryPage Component
+ * LaboratoryHistoryPage Component
  * 
- * Displays the institutional history of library visits.
+ * Displays the institutional history of laboratory room usage.
  * Access restricted exclusively to Administrators.
  */
-export default function VisitHistoryPage() {
+export default function LaboratoryHistoryPage() {
   const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
 
   // Redirect or block normal users
   const isAdmin = profile?.role === "admin";
 
-  // Memoized query for institutional visit logs
-  const visitsQuery = useMemoFirebase(() => {
+  // Memoized query for institutional usage logs
+  const usageQuery = useMemoFirebase(() => {
     if (!isAdmin || authLoading || !firestore) return null;
-    return query(collection(firestore, "visits"), orderBy("timestamp", "desc"));
+    // Admins see everything, ordered by time
+    return query(collection(firestore, "lab_usage"), orderBy("timestamp", "desc"));
   }, [isAdmin, firestore, authLoading]);
 
-  const { data: visits, isLoading: visitsLoading, error } = useCollection(visitsQuery);
+  const { data: usageLogs, isLoading: usageLoading, error } = useCollection(usageQuery);
 
-  const isLoading = authLoading || (isAdmin && visitsLoading);
+  const isLoading = authLoading || (isAdmin && usageLoading);
 
   // Protected route content for non-admins
   if (!authLoading && !isAdmin) {
@@ -57,7 +57,7 @@ export default function VisitHistoryPage() {
             <div className="space-y-2">
               <h3 className="text-2xl font-bold text-destructive">Restricted Access</h3>
               <p className="text-muted-foreground">
-                Visit history and institutional logs are only accessible to library administrators.
+                Institutional usage logs are only accessible to laboratory administrators.
               </p>
             </div>
             <Link href="/" className="block">
@@ -74,8 +74,8 @@ export default function VisitHistoryPage() {
       <header className="bg-[#0C46A3] text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <GraduationCap className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-tight">NEU Library</h1>
+            <FlaskConical className="w-8 h-8" />
+            <h1 className="text-xl font-bold tracking-tight">NEU Laboratory</h1>
           </Link>
           <Link href="/dashboard">
             <Button 
@@ -92,8 +92,8 @@ export default function VisitHistoryPage() {
       <main className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="space-y-8">
           <AdminPageHeader 
-            title="Institutional Visit Logs" 
-            description="Monitoring library access and usage patterns across the university." 
+            title="Institutional Usage Logs" 
+            description="Monitoring faculty utilization of laboratory rooms across the university." 
             showBackButton={false}
             centered={true}
           />
@@ -109,14 +109,14 @@ export default function VisitHistoryPage() {
                 <CardContent className="py-10 text-center">
                   <p className="text-destructive font-bold text-lg">Unable to load institutional history</p>
                   <p className="text-sm text-muted-foreground mt-2">
-                    {error.message || "An error occurred while fetching library logs."}
+                    {error.message || "An error occurred while fetching usage logs."}
                   </p>
                   <Link href="/">
                     <Button variant="outline" className="mt-6">Return to Dashboard</Button>
                   </Link>
                 </CardContent>
               </Card>
-            ) : !visits || visits.length === 0 ? (
+            ) : !usageLogs || usageLogs.length === 0 ? (
               <Card className="border-dashed border-2 bg-white/50">
                 <CardContent className="flex flex-col items-center justify-center py-16 text-center space-y-4">
                   <div className="p-4 bg-muted rounded-full">
@@ -125,47 +125,47 @@ export default function VisitHistoryPage() {
                   <div className="space-y-1">
                     <h3 className="text-xl font-semibold">No records found</h3>
                     <p className="text-muted-foreground max-w-xs mx-auto">
-                      There are currently no recorded visits in the institutional database.
+                      There are currently no recorded laboratory sessions in the institutional database.
                     </p>
                   </div>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid gap-4">
-                {visits.map((visit) => {
-                  const visitDate = visit.timestamp?.toDate?.();
+                {usageLogs.map((log) => {
+                  const logDate = log.timestamp?.toDate?.();
                   return (
-                    <Card key={visit.id} className="hover:shadow-lg transition-all border-none shadow-sm overflow-hidden group">
+                    <Card key={log.id} className="hover:shadow-lg transition-all border-none shadow-sm overflow-hidden group">
                       <div className="h-1 bg-[#47C1EB] w-0 group-hover:w-full transition-all duration-300" />
                       <CardContent className="p-6">
                         <div className="flex flex-col md:flex-row md:items-center gap-6">
                           <div className="w-14 h-14 bg-accent/30 rounded-2xl flex items-center justify-center text-[#0C46A3] shrink-0 shadow-inner">
-                            <BookOpen className="w-7 h-7" />
+                            <FlaskConical className="w-7 h-7" />
                           </div>
                           
                           <div className="flex-1 space-y-3 min-w-0">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                               <h4 className="font-bold text-xl text-[#0C46A3] truncate">
-                                {visit.reason || "Visit"}
+                                {log.roomNumber || "Laboratory Session"}
                               </h4>
                               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                                 <Calendar className="w-4 h-4" />
-                                {visitDate ? format(visitDate, 'PPP') : 'Processing...'}
+                                {logDate ? format(logDate, 'PPP') : 'Processing...'}
                               </div>
                             </div>
 
                             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                               <span className="flex items-center gap-2 text-muted-foreground">
                                 <Clock className="w-4 h-4 text-[#47C1EB]" />
-                                {visitDate ? format(visitDate, 'p') : ''}
+                                {logDate ? format(logDate, 'p') : ''}
                               </span>
                               <span className="flex items-center gap-2 text-muted-foreground">
                                 <Building className="w-4 h-4 text-[#47C1EB]" />
-                                {visit.collegeOffice || "N/A"}
+                                {log.collegeOffice || "N/A"}
                               </span>
                               <span className="flex items-center gap-2 text-[#0C46A3] font-semibold">
                                 <UserIcon className="w-4 h-4" />
-                                {visit.fullName || "Institutional Member"}
+                                {log.fullName || "Institutional Member"}
                               </span>
                             </div>
                           </div>
@@ -183,7 +183,7 @@ export default function VisitHistoryPage() {
       <footer className="py-10 border-t mt-12 bg-white/50">
         <div className="container mx-auto px-4 text-center">
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
-            New Era University • Library Services • Institutional Access History
+            New Era University • Laboratory Services • Institutional Access History
           </p>
         </div>
       </footer>

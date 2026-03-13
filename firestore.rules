@@ -10,25 +10,27 @@ service cloud.firestore {
     }
 
     function isInstitutionalEmail() {
-      return isSignedIn() && request.auth.token.email.matches('.*@neu\\.edu\\.ph$');
+      return isSignedIn() && 
+             request.auth.token.email != null && 
+             request.auth.token.email.endsWith('@neu.edu.ph');
     }
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function getUserData() {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+    function getUserData(uid) {
+      let path = /databases/$(database)/documents/users/$(uid);
       return exists(path) ? get(path).data : null;
     }
 
     function isAdmin() {
-      let data = getUserData();
+      let data = getUserData(request.auth.uid);
       return isSignedIn() && data != null && data.role == 'admin';
     }
 
     function isNotBlocked() {
-      let data = getUserData();
+      let data = getUserData(request.auth.uid);
       return isSignedIn() && (data == null || data.isBlocked == false);
     }
 
