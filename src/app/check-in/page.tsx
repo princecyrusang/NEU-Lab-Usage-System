@@ -8,12 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { FlaskConical, User, Building, Mail, BookOpen, ArrowLeft, QrCode, CheckCircle2 } from "lucide-react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { FlaskConical, User, Building, Mail, ArrowLeft, QrCode, CheckCircle2 } from "lucide-react";
+import { collection, addDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 import Link from "next/link";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
@@ -49,7 +47,6 @@ export default function LaboratoryUsagePage() {
 
       scannerRef.current.render(
         (decodedText) => {
-          // In a real scenario, we'd verify the ID text matches the user's institutional ID
           toast({
             title: "ID Verified",
             description: `Professor ID successfully identified: ${decodedText.substring(0, 8)}...`,
@@ -61,7 +58,7 @@ export default function LaboratoryUsagePage() {
             scannerRef.current = null;
           }
         },
-        (error) => {
+        () => {
           // Scanning...
         }
       );
@@ -89,13 +86,14 @@ export default function LaboratoryUsagePage() {
 
     setIsSubmitting(true);
     
+    // Explicitly define the data object as requested for debugging
     const usageData = {
       userId: user.uid,
-      fullName: profile.fullName,
+      fullName: profile.fullName || user.displayName || "Unknown Professor",
       email: user.email,
-      collegeOffice: profile.collegeOffice,
+      collegeOffice: profile.collegeOffice || "Unassigned Office",
       roomNumber: room,
-      timestamp: serverTimestamp(),
+      timestamp: new Date(),
     };
 
     const usageRef = collection(firestore, "lab_usage");
@@ -104,19 +102,14 @@ export default function LaboratoryUsagePage() {
       .then(() => {
         router.push(`/confirmation?room=${encodeURIComponent(room)}`);
       })
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: usageRef.path,
-          operation: 'create',
-          requestResourceData: usageData,
-        });
-        
-        errorEmitter.emit('permission-error', permissionError);
+      .catch((error) => {
+        // Removed custom FirestorePermissionError wrapper to see raw error
+        console.error("Firestore Save Error:", error);
         
         toast({
           variant: "destructive",
           title: "Submission Error",
-          description: "Could not record laboratory usage. Please check institutional access.",
+          description: error.message || "Could not record laboratory usage. Please check institutional access.",
         });
       })
       .finally(() => {
