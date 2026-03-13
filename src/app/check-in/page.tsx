@@ -72,7 +72,13 @@ export default function LaboratoryUsagePage() {
     };
   }, [isScannerActive, toast]);
 
-  const handleUsageSubmit = () => {
+  /**
+   * handleConfirmUsage
+   * 
+   * Formats the usage data explicitly and attempts to save to Firestore.
+   * Uses a standard Date object for the timestamp and catches raw errors.
+   */
+  const handleConfirmUsage = () => {
     if (!room || !user || !profile || !firestore || !isIdVerified) {
       if (!isIdVerified) {
         toast({
@@ -86,30 +92,31 @@ export default function LaboratoryUsagePage() {
 
     setIsSubmitting(true);
     
-    // Explicitly define the data object as requested for debugging
+    // Explicitly define the data object with required keys
     const usageData = {
       userId: user.uid,
       fullName: profile.fullName || user.displayName || "Unknown Professor",
       email: user.email,
       collegeOffice: profile.collegeOffice || "Unassigned Office",
       roomNumber: room,
-      timestamp: new Date(),
+      timestamp: new Date(), // Using standard JS Date instead of serverTimestamp()
     };
 
     const usageRef = collection(firestore, "lab_usage");
     
+    // Attempting create operation with raw error handling
     addDoc(usageRef, usageData)
       .then(() => {
         router.push(`/confirmation?room=${encodeURIComponent(room)}`);
       })
       .catch((error) => {
-        // Removed custom FirestorePermissionError wrapper to see raw error
-        console.error("Firestore Save Error:", error);
+        // Logging raw error to console for precise debugging of 'Missing or insufficient permissions'
+        console.error("RAW FIRESTORE ERROR:", error);
         
         toast({
           variant: "destructive",
           title: "Submission Error",
-          description: error.message || "Could not record laboratory usage. Please check institutional access.",
+          description: error.message || "Permission denied. Please ensure your profile is fully set up and institutional access is active.",
         });
       })
       .finally(() => {
@@ -225,7 +232,7 @@ export default function LaboratoryUsagePage() {
               </div>
 
               <Button 
-                onClick={handleUsageSubmit}
+                onClick={handleConfirmUsage}
                 disabled={!room || isSubmitting || !isIdVerified}
                 className="w-full py-8 text-xl font-bold shadow-xl transition-transform active:scale-95"
               >
