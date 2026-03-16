@@ -2,10 +2,10 @@
 "use client";
 
 import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
-import { query, where, collection, orderBy } from "firebase/firestore";
+import { query, collection, orderBy } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FlaskConical, CalendarDays, History, Loader2, Search } from "lucide-react";
-import { startOfDay, startOfWeek, startOfMonth, format } from "date-fns";
+import { startOfDay, startOfWeek, startOfMonth } from "date-fns";
 import { useAuth } from "@/context/auth-context";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { useMemo, useState, useEffect } from "react";
@@ -32,7 +32,7 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const isConfirmedAdmin = !authLoading && profile?.role === "admin";
+  const isConfirmedAdmin = !authLoading && profile?.role === "Admin";
 
   const usageQuery = useMemoFirebase(() => {
     if (!isConfirmedAdmin || !firestore) return null;
@@ -43,7 +43,11 @@ export default function AdminDashboard() {
   const stats = useMemo(() => {
     if (!allUsage) return { today: 0, week: 0, month: 0, total: 0 };
     
-    const getLogDate = (ts: any) => ts?.toDate ? ts.toDate() : new Date(ts);
+    const getLogDate = (ts: any) => {
+      if (ts?.toDate) return ts.toDate();
+      if (typeof ts === 'string') return new Date(ts);
+      return new Date(ts);
+    };
 
     return {
       today: allUsage.filter(v => getLogDate(v.timestamp) >= todayStart).length,
@@ -57,7 +61,11 @@ export default function AdminDashboard() {
     if (!allUsage) return [];
     let filtered = allUsage;
 
-    const getLogDate = (ts: any) => ts?.toDate ? ts.toDate() : new Date(ts);
+    const getLogDate = (ts: any) => {
+      if (ts?.toDate) return ts.toDate();
+      if (typeof ts === 'string') return new Date(ts);
+      return new Date(ts);
+    };
 
     if (searchTerm) {
       filtered = filtered.filter(log => 
@@ -85,10 +93,10 @@ export default function AdminDashboard() {
   if (!isConfirmedAdmin) return null;
 
   const statCards = [
-    { label: "Today's Utilization", value: stats.today, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-100" },
+    { label: "Today's Laboratory Usage", value: stats.today, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-100" },
     { label: "Weekly Sessions", value: stats.week, icon: History, color: "text-indigo-600", bg: "bg-indigo-100" },
-    { label: "Monthly Logins", value: stats.month, icon: FlaskConical, color: "text-green-600", bg: "bg-green-100" },
-    { label: "Total Institutional Usage", value: stats.total, icon: Users, color: "text-orange-600", bg: "bg-orange-100" },
+    { label: "Monthly Utilization", value: stats.month, icon: FlaskConical, color: "text-green-600", bg: "bg-green-100" },
+    { label: "Total Institutional Logs", value: stats.total, icon: Users, color: "text-orange-600", bg: "bg-orange-100" },
   ];
 
   return (

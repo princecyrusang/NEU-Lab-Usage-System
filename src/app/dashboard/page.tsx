@@ -8,7 +8,6 @@ import {
   LogOut, 
   FlaskConical, 
   User, 
-  ClipboardCheck, 
   History, 
   Settings, 
   ShieldCheck,
@@ -33,7 +32,7 @@ export default function LaboratoryDashboard() {
     );
   }
 
-  const isAdmin = profile.role === "admin";
+  const isAdmin = profile.role === "Admin";
 
   const ALL_ACTIONS = [
     {
@@ -47,16 +46,6 @@ export default function LaboratoryDashboard() {
       adminOnly: false,
     },
     {
-      title: "Usage Logs",
-      description: "Review institutional laboratory usage history.",
-      icon: History,
-      href: "/history",
-      color: "bg-indigo-600",
-      textColor: "text-indigo-600",
-      borderColor: "border-indigo-200",
-      adminOnly: true,
-    },
-    {
       title: "Faculty Profile",
       description: "Manage your institutional and college details.",
       icon: Settings,
@@ -65,6 +54,16 @@ export default function LaboratoryDashboard() {
       textColor: "text-slate-600",
       borderColor: "border-slate-200",
       adminOnly: false,
+    },
+    {
+      title: "Usage History",
+      description: "Review institutional laboratory usage history.",
+      icon: History,
+      href: "/history",
+      color: "bg-indigo-600",
+      textColor: "text-indigo-600",
+      borderColor: "border-indigo-200",
+      adminOnly: true,
     },
   ];
 
@@ -92,7 +91,7 @@ export default function LaboratoryDashboard() {
       <main className="container mx-auto px-4 py-8 max-w-4xl flex-1">
         <div className="space-y-8">
           <div>
-            <h2 className="text-3xl font-bold text-primary">Professor {profile.fullName.split(' ')[0]}</h2>
+            <h2 className="text-3xl font-bold text-primary">{profile.role} {profile.fullName.split(' ')[0]}</h2>
             <p className="text-muted-foreground">Manage laboratory room sessions and usage logs.</p>
           </div>
 
@@ -142,7 +141,7 @@ export default function LaboratoryDashboard() {
                       <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     <h3 className="text-lg font-bold mb-1">Admin Dashboard</h3>
-                    <p className="text-sm text-muted-foreground">Laboratory Usage Statistics and room management.</p>
+                    <p className="text-sm text-muted-foreground">Institutional Laboratory Reports and room management.</p>
                   </CardContent>
                 </Card>
               </Link>

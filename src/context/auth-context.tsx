@@ -12,7 +12,7 @@ interface UserProfile {
   id: string;
   email: string;
   fullName: string;
-  role: "admin" | "user";
+  role: "Admin" | "Professor";
   collegeOffice: string;
   isSetupComplete: boolean;
   isBlocked: boolean;
@@ -44,6 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (docSnap.exists()) {
       const data = docSnap.data() as UserProfile;
+      // Handle legacy "user" role transition to "Professor"
+      if ((data.role as string) === "user") {
+        data.role = "Professor";
+      }
       setProfile(data);
       return data;
     } else {
@@ -51,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: firebaseUser.uid,
         email: firebaseUser.email || "",
         fullName: firebaseUser.displayName || "",
-        role: "user",
+        role: "Professor",
         collegeOffice: "",
         isSetupComplete: false,
         isBlocked: false,
@@ -70,7 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (firebaseUser) {
         const email = firebaseUser.email?.toLowerCase() || "";
         
-        // Strict domain check
         if (!email.endsWith("@neu.edu.ph")) {
           await signOut(firebaseAuth);
           setUser(null);
@@ -100,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUser(null);
         setProfile(null);
-        if (pathname !== "/login") {
+        if (pathname !== "/login" && pathname !== "/" && !pathname.includes("/admin")) {
           router.push("/login");
         }
       }
@@ -111,11 +114,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [firebaseAuth, pathname, router, toast]);
 
   const login = async () => {
+    if (loading) return;
+    setLoading(true);
     try {
       const googleProvider = new GoogleAuthProvider();
       googleProvider.setCustomParameters({ prompt: "select_account" });
       await signInWithPopup(firebaseAuth, googleProvider);
     } catch (error: any) {
+      setLoading(false);
       if (error.code !== 'auth/popup-closed-by-user') {
         toast({
           variant: "destructive",

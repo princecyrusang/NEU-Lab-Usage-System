@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LayoutDashboard, Users, BarChart3, LogOut, Menu, Loader2, Home } from "lucide-react";
+import { GraduationCap, LayoutDashboard, Users, BarChart3, LogOut, Menu, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -27,7 +27,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
-    if (isMounted && !loading && profile?.role !== "admin") {
+    if (isMounted && !loading && profile?.role !== "Admin") {
       router.push("/dashboard");
     }
   }, [isMounted, loading, profile, router]);
@@ -40,7 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  if (profile?.role !== "admin") return null;
+  if (profile?.role !== "Admin") return null;
 
   const NavLinks = () => (
     <nav className="flex flex-col gap-2">

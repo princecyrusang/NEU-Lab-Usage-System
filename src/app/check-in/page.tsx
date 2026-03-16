@@ -16,10 +16,8 @@ import Link from "next/link";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
 const LAB_ROOMS = [
-  "Laboratory Room 101",
-  "Laboratory Room 102",
-  "Computer Lab 201",
-  "Computer Lab 202",
+  "Computer Lab 101",
+  "Computer Lab 102",
   "Physics Lab 301",
   "Chemistry Lab 302",
   "Biology Lab 303",
@@ -72,17 +70,7 @@ export default function LaboratoryUsagePage() {
     };
   }, [isScannerActive, toast]);
 
-  /**
-   * handleConfirmUsage
-   * 
-   * Updated to strictly follow requested debugging constraints:
-   * 1. Uses exactly the requested keys.
-   * 2. Uses .toISOString() for timestamp.
-   * 3. Wraps in an explicit auth check.
-   * 4. Logs raw error to console.
-   */
   const handleConfirmUsage = () => {
-    // Explicit Auth State check
     if (!user || !profile || !firestore) {
        toast({
         variant: "destructive",
@@ -105,7 +93,6 @@ export default function LaboratoryUsagePage() {
 
     setIsSubmitting(true);
     
-    // Explicitly defined data object with exactly requested keys
     const usageData = {
       userId: user.uid,
       fullName: profile.fullName || user.displayName || "",
@@ -117,19 +104,16 @@ export default function LaboratoryUsagePage() {
 
     const usageRef = collection(firestore, "lab_usage");
     
-    // Use addDoc directly for the simplified path
     addDoc(usageRef, usageData)
       .then(() => {
         router.push(`/confirmation?room=${encodeURIComponent(room)}`);
       })
       .catch((error) => {
-        // Log raw error for debugging
         console.error("RAW FIRESTORE ERROR:", error);
-        
         toast({
           variant: "destructive",
           title: "Submission Error",
-          description: error.message || "Permission denied. Check console for raw error.",
+          description: error.message || "Permission denied.",
         });
       })
       .finally(() => {
