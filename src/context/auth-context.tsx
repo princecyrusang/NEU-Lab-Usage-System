@@ -1,7 +1,15 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User, signOut, signInWithRedirect, GoogleAuthProvider, getRedirectResult } from "firebase/auth";
+import { 
+  User, 
+  signOut, 
+  signInWithRedirect, 
+  GoogleAuthProvider, 
+  getRedirectResult, 
+  onAuthStateChanged 
+} from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
 import { useRouter, usePathname } from "next/navigation";
@@ -70,20 +78,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!firebaseAuth) return;
 
-    const handleRedirect = async () => {
+    // Handle the result of a redirect sign-in
+    const handleRedirectResult = async () => {
       try {
         const result = await getRedirectResult(firebaseAuth);
         if (result?.user) {
-          // Redirect result handled, auth state listener will take over
+          const email = result.user.email?.toLowerCase() || "";
+          if (!email.endsWith("@neu.edu.ph")) {
+            await signOut(firebaseAuth);
+            toast({
+              variant: "destructive",
+              title: "Access Restricted",
+              description: "Only verified @neu.edu.ph institutional accounts are allowed.",
+            });
+            return;
+          }
         }
       } catch (error: any) {
-        console.error("Redirect error:", error);
+        console.error("Auth redirect result error:", error);
       }
     };
 
-    handleRedirect();
+    handleRedirectResult();
 
-    const unsubscribe = firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser) {
         const email = firebaseUser.email?.toLowerCase() || "";
         
@@ -97,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             description: "Only verified @neu.edu.ph institutional accounts are allowed.",
           });
           setLoading(false);
-          router.push("/login");
           return;
         }
 
@@ -111,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [firebaseAuth, toast, router]);
+  }, [firebaseAuth, toast]);
 
   useEffect(() => {
     if (loading) return;
@@ -120,18 +137,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (user && profile) {
       if (profile.isBlocked && cleanPath !== "/access-denied") {
-        router.push("/access-denied");
+        router.push("/access-denied/");
       } else if (!profile.isSetupComplete && cleanPath !== "/onboarding" && cleanPath !== "/access-denied") {
-        router.push("/onboarding");
+        router.push("/onboarding/");
       } else if (profile.isSetupComplete) {
         if (cleanPath === "/login" || cleanPath === "" || cleanPath === "/onboarding") {
-          router.push("/dashboard");
+          router.push("/dashboard/");
         }
       }
     } else if (!user && !loading) {
       const publicPaths = ["/login", "", "/access-denied"];
-      if (!publicPaths.includes(cleanPath) && !cleanPath.includes("/admin")) {
-        router.push("/login");
+      if (!publicPaths.includes(cleanPath) && !cleanPath.startsWith("/admin")) {
+        router.push("/login/");
       }
     }
   }, [user, profile, loading, pathname, router]);
@@ -146,6 +163,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       setLoading(false);
       console.error("Login trigger error:", error);
+      toast({
+        variant: "destructive",
+        title: "Login Error",
+        description: error.message || "Failed to initiate login.",
+      });
     }
   };
 
@@ -153,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!firebaseAuth) return;
     setLoading(true);
     await signOut(firebaseAuth);
-    router.push("/login");
+    router.push("/login/");
     setLoading(false);
   };
 

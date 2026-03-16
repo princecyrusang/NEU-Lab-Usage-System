@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -6,7 +7,7 @@ import { collection } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useAuth } from "@/context/auth-context";
-import { Loader2, FlaskConical, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -28,9 +29,10 @@ export default function LaboratoryReportsPage() {
     if (!isAdmin || !firestore) return null;
     return collection(firestore, "lab_usage");
   }, [firestore, isAdmin]);
+  
   const { data: logs, isLoading: usageLoading } = useCollection(usageQuery);
 
-  const { roomData, collegeData, usageByDay } = useMemo(() => {
+  const stats = useMemo(() => {
     if (!logs) return { roomData: [], collegeData: [], usageByDay: [] };
 
     const getLogDate = (ts: any) => {
@@ -41,24 +43,24 @@ export default function LaboratoryReportsPage() {
 
     // Group by Room
     const rooms = logs.reduce((acc: any[], log) => {
-      if (!log.roomNumber) return acc;
-      const existing = acc.find(a => a.name === log.roomNumber);
+      const room = log.roomNumber || "Unknown Room";
+      const existing = acc.find(a => a.name === room);
       if (existing) {
         existing.value += 1;
       } else {
-        acc.push({ name: log.roomNumber, value: 1 });
+        acc.push({ name: room, value: 1 });
       }
       return acc;
     }, []).sort((a, b) => b.value - a.value);
 
     // Group by College/Department
     const colleges = logs.reduce((acc: any[], log) => {
-      if (!log.collegeOffice) return acc;
-      const existing = acc.find(a => a.name === log.collegeOffice);
+      const office = log.collegeOffice || "Unknown Office";
+      const existing = acc.find(a => a.name === office);
       if (existing) {
         existing.value += 1;
       } else {
-        acc.push({ name: log.collegeOffice, value: 1 });
+        acc.push({ name: office, value: 1 });
       }
       return acc;
     }, []);
@@ -80,6 +82,8 @@ export default function LaboratoryReportsPage() {
 
     return { roomData: rooms, collegeData: colleges, usageByDay: days };
   }, [logs]);
+
+  const { roomData, collegeData, usageByDay } = stats;
 
   if (authLoading || !isMounted) {
     return (
@@ -103,7 +107,7 @@ export default function LaboratoryReportsPage() {
                 Institutional reports are only accessible to system administrators.
               </p>
             </div>
-            <Link href="/dashboard" className="block">
+            <Link href="/dashboard/" className="block">
               <Button className="w-full py-6">Return to Dashboard</Button>
             </Link>
           </CardContent>

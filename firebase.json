@@ -1,3 +1,4 @@
+
 {
   "hosting": {
     "public": "out",
@@ -7,12 +8,6 @@
       "**/node_modules/**"
     ],
     "cleanUrls": true,
-    "trailingSlash": true,
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
+    "trailingSlash": true
   }
 }

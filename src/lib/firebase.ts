@@ -1,33 +1,13 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { firebaseConfig as officialConfig } from "@/firebase/config";
 
-/*
-  🔥 FIXED:
-  Using official config values to resolve auth-domain and invalid-api-key errors.
-*/
+import { initializeFirebase } from "@/firebase";
 
-const firebaseConfig = {
-  apiKey: officialConfig.apiKey,
-  authDomain: officialConfig.authDomain,
-  projectId: officialConfig.projectId,
-  storageBucket: `${officialConfig.projectId}.appspot.com`,
-  messagingSenderId: officialConfig.messagingSenderId,
-  appId: officialConfig.appId,
-};
+/**
+ * 🔥 FIXED:
+ * Consolidating Firebase initialization to use the centralized @/firebase logic.
+ * This prevents "Firebase App named '[DEFAULT]' already exists" errors in production.
+ */
 
-// Initialize Firebase only once
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+const { firebaseApp, auth, firestore } = initializeFirebase();
 
-// Firebase Services
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// Google Provider
-const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: "select_account",
-});
-
-export { app, auth, db, googleProvider };
+export { firebaseApp as app, auth, firestore as db };
+export const googleProvider = null; // Use centralized AuthProvider logic instead

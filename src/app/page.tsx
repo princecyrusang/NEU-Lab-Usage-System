@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,7 +10,7 @@ import { Loader2 } from "lucide-react";
  * Root Entry Page
  * 
  * Handles initial app redirection based on authentication state.
- * Wrapped in useEffect to ensure safe client-side routing.
+ * Ensures strict client-side routing and handles potential slashes.
  */
 export default function RootPage() {
   const { profile, loading } = useAuth();

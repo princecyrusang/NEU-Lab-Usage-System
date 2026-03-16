@@ -1,12 +1,21 @@
+
 "use client";
 
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DoorOpen, ShieldCheck, QrCode } from "lucide-react";
+import { DoorOpen, ShieldCheck, QrCode, Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 export default function LoginPage() {
-  const { login, loading } = useAuth();
+  const { login, loading, user } = useAuth();
+
+  // Redirect if user is already detected
+  useEffect(() => {
+    if (user) {
+      window.location.href = "/dashboard/";
+    }
+  }, [user]);
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-[#0C46A3]">
@@ -34,12 +43,12 @@ export default function LoginPage() {
           >
             {loading ? (
               <span className="flex items-center gap-2">
-                <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                <Loader2 className="animate-spin h-5 w-5" />
                 Processing Login...
               </span>
             ) : (
               <>
-                <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
+                <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                     fill="#4285F4"
