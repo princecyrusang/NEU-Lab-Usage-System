@@ -31,13 +31,17 @@ export default function LaboratoryReportsPage() {
   }, [firestore, isAdmin]);
   const { data: logs, isLoading: usageLoading } = useCollection(usageQuery);
 
-  const analyticsData = useMemo(() => {
+  const { roomData, collegeData, usageByDay } = useMemo(() => {
     if (!logs) return { roomData: [], collegeData: [], usageByDay: [] };
 
-    const getLogDate = (ts: any) => ts?.toDate ? ts.toDate() : new Date(ts);
+    const getLogDate = (ts: any) => {
+      if (!ts) return null;
+      if (ts.toDate) return ts.toDate();
+      return new Date(ts);
+    };
 
     // Group by Room
-    const roomData = logs.reduce((acc: any[], log) => {
+    const rooms = logs.reduce((acc: any[], log) => {
       if (!log.roomNumber) return acc;
       const existing = acc.find(a => a.name === log.roomNumber);
       if (existing) {
@@ -49,7 +53,7 @@ export default function LaboratoryReportsPage() {
     }, []).sort((a, b) => b.value - a.value);
 
     // Group by College/Department
-    const collegeData = logs.reduce((acc: any[], log) => {
+    const colleges = logs.reduce((acc: any[], log) => {
       if (!log.collegeOffice) return acc;
       const existing = acc.find(a => a.name === log.collegeOffice);
       if (existing) {
@@ -61,7 +65,7 @@ export default function LaboratoryReportsPage() {
     }, []);
 
     // Usage per day
-    const usageByDay = logs.reduce((acc: any[], log) => {
+    const days = logs.reduce((acc: any[], log) => {
       const dateObj = getLogDate(log.timestamp);
       if (!dateObj || isNaN(dateObj.getTime())) return acc;
       
@@ -75,7 +79,7 @@ export default function LaboratoryReportsPage() {
       return acc;
     }, []).sort((a: any, b: any) => a.date.localeCompare(b.date));
 
-    return { roomData, collegeData, usageByDay };
+    return { roomData: rooms, collegeData: colleges, usageByDay: days };
   }, [logs]);
 
   if (authLoading || !isMounted) {
