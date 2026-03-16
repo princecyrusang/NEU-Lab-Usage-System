@@ -12,7 +12,7 @@ import {
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserProfile {
@@ -41,7 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
 
@@ -78,35 +77,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!firebaseAuth) return;
 
-    // Handle the result of a redirect sign-in
-    const handleRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(firebaseAuth);
-        if (result?.user) {
-          const email = result.user.email?.toLowerCase() || "";
-          if (!email.endsWith("@neu.edu.ph")) {
-            await signOut(firebaseAuth);
-            toast({
-              variant: "destructive",
-              title: "Access Restricted",
-              description: "Only verified @neu.edu.ph institutional accounts are allowed.",
-            });
-            return;
-          }
-          // Profile sync will be handled by the onAuthStateChanged listener
-        }
-      } catch (error: any) {
-        console.error("Auth redirect result error:", error);
-        setLoading(false);
-      }
-    };
-
-    handleRedirectResult();
+    // Process redirect result immediately on mount
+    getRedirectResult(firebaseAuth).catch(err => {
+      console.error("Redirect handler error:", err);
+    });
 
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser) {
         const email = firebaseUser.email?.toLowerCase() || "";
-        
         if (!email.endsWith("@neu.edu.ph")) {
           await signOut(firebaseAuth);
           setUser(null);
@@ -119,7 +97,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false);
           return;
         }
-
         setUser(firebaseUser);
         await syncProfile(firebaseUser);
       } else {
@@ -132,29 +109,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [firebaseAuth, toast]);
 
+  // Client-Side Only Redirection Logic for Static Export stability
   useEffect(() => {
     if (loading) return;
 
-    // Path normalization for trailing slashes
     const cleanPath = pathname?.replace(/\/$/, '') || "";
-    
+    const isLoginPage = cleanPath === "/login" || cleanPath === "";
+
     if (user && profile) {
       if (profile.isBlocked && cleanPath !== "/access-denied") {
-        router.push("/access-denied/");
+        window.location.href = "/access-denied/";
       } else if (!profile.isSetupComplete && cleanPath !== "/onboarding" && cleanPath !== "/access-denied") {
-        router.push("/onboarding/");
-      } else if (profile.isSetupComplete) {
-        if (cleanPath === "/login" || cleanPath === "" || cleanPath === "/onboarding") {
-          router.push("/dashboard/");
-        }
+        window.location.href = "/onboarding/";
+      } else if (profile.isSetupComplete && isLoginPage) {
+        window.location.href = "/dashboard/";
       }
-    } else if (!user && !loading) {
-      const publicPaths = ["/login", "", "/access-denied"];
-      if (!publicPaths.includes(cleanPath) && !cleanPath.startsWith("/admin")) {
-        router.push("/login/");
-      }
+    } else if (!user && !isLoginPage && cleanPath !== "/access-denied") {
+      window.location.href = "/login/";
     }
-  }, [user, profile, loading, pathname, router]);
+  }, [user, profile, loading, pathname]);
 
   const login = async () => {
     if (!firebaseAuth) return;
@@ -165,7 +138,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await signInWithRedirect(firebaseAuth, googleProvider);
     } catch (error: any) {
       setLoading(false);
-      console.error("Login trigger error:", error);
       toast({
         variant: "destructive",
         title: "Login Error",
@@ -178,8 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!firebaseAuth) return;
     setLoading(true);
     await signOut(firebaseAuth);
-    router.push("/login/");
-    setLoading(false);
+    window.location.href = "/login/";
   };
 
   return (

@@ -4,27 +4,43 @@
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DoorOpen, ShieldCheck, QrCode, Loader2 } from "lucide-react";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { ShieldCheck, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
+/**
+ * NEU LAB ROOM Login Page
+ * 
+ * Uses direct window.location redirects for maximum stability in static hosting.
+ */
 export default function LoginPage() {
   const { login, loading, user } = useAuth();
-  const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
-  // Redirect if user is already detected
+  // Immediate redirection if user is already detected
   useEffect(() => {
     if (user) {
-      router.push("/dashboard/");
+      setIsRedirecting(true);
+      window.location.href = "/dashboard/";
     }
-  }, [user, router]);
+  }, [user]);
+
+  if (isRedirecting) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0C46A3]">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-12 h-12 text-white animate-spin mx-auto" />
+          <p className="text-white font-medium">Redirecting to Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-[#0C46A3]">
       <Card className="w-full max-w-md shadow-2xl border-none">
         <CardHeader className="text-center space-y-4 pt-10">
-          <div className="mx-auto w-20 h-20 bg-primary flex items-center justify-center rounded-2xl shadow-lg">
-            <DoorOpen className="w-12 h-12 text-white" />
+          <div className="mx-auto w-24 h-24 bg-primary flex items-center justify-center rounded-2xl shadow-lg text-5xl">
+            🚪
           </div>
           <div className="space-y-1">
             <CardTitle className="text-3xl font-bold tracking-tight text-primary">NEU LAB ROOM</CardTitle>
@@ -34,7 +50,7 @@ export default function LoginPage() {
         <CardContent className="space-y-6 pb-10">
           <div className="flex items-center gap-3 p-4 bg-accent/30 rounded-lg text-sm text-primary font-medium border border-accent">
             <ShieldCheck className="w-5 h-5 shrink-0" />
-            <p>Access restricted to verified faculty (@neu.edu.ph) only. QR scanner enabled after login.</p>
+            <p>Access restricted to verified faculty (@neu.edu.ph). Log usage sessions after login.</p>
           </div>
           
           <Button 
@@ -46,7 +62,7 @@ export default function LoginPage() {
             {loading ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="animate-spin h-5 w-5" />
-                Processing Login...
+                Verifying...
               </span>
             ) : (
               <div className="flex items-center justify-center gap-3">
@@ -78,15 +94,10 @@ export default function LoginPage() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Institutional Log</span>
+              <span className="bg-background px-2 text-muted-foreground">Institutional Access</span>
             </div>
           </div>
 
-          <div className="p-4 bg-muted/50 rounded-lg flex items-center justify-center gap-2 text-muted-foreground text-sm">
-             <QrCode className="w-4 h-4" />
-             <span>ID Scanning available at verified stations</span>
-          </div>
-          
           <p className="text-center text-xs text-muted-foreground pt-4">
             Authorized access only. Data collection is governed by NEU Privacy Policy.
           </p>

@@ -3,17 +3,31 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'
 
-// Initialize Firebase with explicit config to prevent production errors
+/**
+ * Consolidating Firebase initialization and enforcing browserLocalPersistence.
+ */
 export function initializeFirebase() {
+  let app: FirebaseApp;
   if (!getApps().length) {
-    // CRITICAL: Explicitly pass the config object to ensure it is not lost in build optimization
-    const firebaseApp = initializeApp(firebaseConfig);
-    return getSdks(firebaseApp);
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApp();
   }
-  return getSdks(getApp());
+  
+  const auth = getAuth(app);
+  // Ensure the session survives page refreshes and browser restarts
+  setPersistence(auth, browserLocalPersistence).catch(err => {
+    console.error("Firebase persistence error:", err);
+  });
+
+  return {
+    firebaseApp: app,
+    auth,
+    firestore: getFirestore(app)
+  };
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {

@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { Loader2 } from "lucide-react";
 
@@ -10,11 +9,10 @@ import { Loader2 } from "lucide-react";
  * Root Entry Page
  * 
  * Handles initial app redirection based on authentication state.
- * Ensures strict client-side routing and handles potential slashes.
+ * Uses direct window.location for static hosting compatibility.
  */
 export default function RootPage() {
   const { profile, loading } = useAuth();
-  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -26,14 +24,14 @@ export default function RootPage() {
 
     if (profile) {
       if (!profile.isSetupComplete) {
-        router.replace("/onboarding/");
+        window.location.href = "/onboarding/";
       } else {
-        router.replace("/dashboard/");
+        window.location.href = "/dashboard/";
       }
     } else {
-      router.replace("/login/");
+      window.location.href = "/login/";
     }
-  }, [profile, loading, router, isMounted]);
+  }, [profile, loading, isMounted]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
