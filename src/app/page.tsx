@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { Loader2 } from "lucide-react";
@@ -15,9 +14,14 @@ import { Loader2 } from "lucide-react";
 export default function RootPage() {
   const { profile, loading } = useAuth();
   const router = useRouter();
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted && !loading) {
       if (profile) {
         if (!profile.isSetupComplete) {
           router.push("/onboarding");
@@ -28,11 +32,14 @@ export default function RootPage() {
         router.push("/login");
       }
     }
-  }, [profile, loading, router]);
+  }, [profile, loading, router, isMounted]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">Initializing NEU LAB ROOM...</p>
+      </div>
     </div>
   );
 }

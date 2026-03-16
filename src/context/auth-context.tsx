@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -39,38 +38,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   const syncProfile = async (firebaseUser: User) => {
-    const docRef = doc(firestore, "users", firebaseUser.uid);
-    const docSnap = await getDoc(docRef);
+    if (!firestore) return null;
+    try {
+      const docRef = doc(firestore, "users", firebaseUser.uid);
+      const docSnap = await getDoc(docRef);
 
-    if (docSnap.exists()) {
-      const data = docSnap.data() as UserProfile;
-      // Handle legacy "user" role transition to "Professor"
-      if ((data.role as string) === "user") {
-        data.role = "Professor";
+      if (docSnap.exists()) {
+        const data = docSnap.data() as UserProfile;
+        if ((data.role as string) === "user") {
+          data.role = "Professor";
+        }
+        setProfile(data);
+        return data;
+      } else {
+        const newProfile: UserProfile = {
+          id: firebaseUser.uid,
+          email: firebaseUser.email || "",
+          fullName: firebaseUser.displayName || "",
+          role: "Professor",
+          collegeOffice: "",
+          isSetupComplete: false,
+          isBlocked: false,
+        };
+        await setDoc(docRef, newProfile);
+        setProfile(newProfile);
+        return newProfile;
       }
-      setProfile(data);
-      return data;
-    } else {
-      const newProfile: UserProfile = {
-        id: firebaseUser.uid,
-        email: firebaseUser.email || "",
-        fullName: firebaseUser.displayName || "",
-        role: "Professor",
-        collegeOffice: "",
-        isSetupComplete: false,
-        isBlocked: false,
-      };
-      await setDoc(docRef, newProfile);
-      setProfile(newProfile);
-      return newProfile;
+    } catch (error) {
+      console.error("Profile sync error:", error);
+      return null;
     }
   };
 
   useEffect(() => {
-    if (!firebaseAuth) return;
+    if (!firebaseAuth) {
+      // If auth service isn't available yet, wait. 
+      // But don't hang indefinitely if it's been several seconds.
+      const timer = setTimeout(() => setLoading(false), 5000);
+      return () => clearTimeout(timer);
+    }
 
     const unsubscribe = firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
-      setLoading(true);
       if (firebaseUser) {
         const email = firebaseUser.email?.toLowerCase() || "";
         
@@ -91,11 +99,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(firebaseUser);
         const userProfile = await syncProfile(firebaseUser);
         
-        if (userProfile.isBlocked && pathname !== "/access-denied") {
+        if (userProfile?.isBlocked && pathname !== "/access-denied") {
           router.push("/access-denied");
-        } else if (!userProfile.isSetupComplete && pathname !== "/onboarding") {
+        } else if (userProfile && !userProfile.isSetupComplete && pathname !== "/onboarding") {
           router.push("/onboarding");
-        } else if (userProfile.isSetupComplete) {
+        } else if (userProfile?.isSetupComplete) {
           if (pathname === "/login" || pathname === "/onboarding") {
             router.push("/dashboard");
           }
@@ -114,7 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [firebaseAuth, pathname, router, toast]);
 
   const login = async () => {
-    if (loading) return;
+    if (!firebaseAuth) return;
     setLoading(true);
     try {
       const googleProvider = new GoogleAuthProvider();
@@ -133,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    if (!firebaseAuth) return;
     await signOut(firebaseAuth);
     router.push("/login");
   };
