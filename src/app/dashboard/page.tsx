@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -5,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { 
   LogOut, 
-  DoorOpen, 
   User, 
   History, 
   Settings, 
@@ -24,7 +24,7 @@ export default function LaboratoryDashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-16 h-16 bg-primary/20 rounded-full" />
+          <div className="text-6xl mb-4">🚪</div>
           <div className="h-4 w-32 bg-muted rounded" />
         </div>
       </div>
@@ -38,7 +38,7 @@ export default function LaboratoryDashboard() {
       title: "Log Usage",
       description: "Scan your ID to record room entry and start session.",
       icon: QrCode,
-      href: "/check-in",
+      href: "/check-in/",
       color: "bg-blue-600",
       textColor: "text-blue-600",
       borderColor: "border-blue-200",
@@ -48,7 +48,7 @@ export default function LaboratoryDashboard() {
       title: "Faculty Profile",
       description: "Manage your institutional and college details.",
       icon: Settings,
-      href: "/profile",
+      href: "/profile/",
       color: "bg-slate-600",
       textColor: "text-slate-600",
       borderColor: "border-slate-200",
@@ -58,7 +58,7 @@ export default function LaboratoryDashboard() {
       title: "Usage History",
       description: "Review institutional laboratory usage history.",
       icon: History,
-      href: "/history",
+      href: "/history/",
       color: "bg-indigo-600",
       textColor: "text-indigo-600",
       borderColor: "border-indigo-200",
@@ -73,7 +73,7 @@ export default function LaboratoryDashboard() {
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <DoorOpen className="w-8 h-8" />
+            <span className="text-3xl">🚪</span>
             <h1 className="text-xl font-bold tracking-tight">NEU LAB ROOM</h1>
           </div>
           <Button 
@@ -90,7 +90,7 @@ export default function LaboratoryDashboard() {
       <main className="container mx-auto px-4 py-8 max-w-4xl flex-1">
         <div className="space-y-8">
           <div>
-            <h2 className="text-3xl font-bold text-primary">{profile.role} {profile.fullName.split(' ')[0]}</h2>
+            <h2 className="text-3xl font-bold text-primary">Welcome, {profile.fullName.split(' ')[0]}</h2>
             <p className="text-muted-foreground">Manage laboratory room sessions and usage logs.</p>
           </div>
 
@@ -130,7 +130,7 @@ export default function LaboratoryDashboard() {
             ))}
 
             {isAdmin && (
-              <Link href="/admin" className="group lg:col-span-1">
+              <Link href="/admin/" className="group lg:col-span-1">
                 <Card className="h-full transition-all hover:shadow-lg border-l-4 border-red-200 active:scale-95 bg-red-50/30">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
@@ -140,7 +140,7 @@ export default function LaboratoryDashboard() {
                       <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     <h3 className="text-lg font-bold mb-1">Admin Dashboard</h3>
-                    <p className="text-sm text-muted-foreground">Institutional Usage Reports and room management.</p>
+                    <p className="text-sm text-muted-foreground">Institutional Usage Reports and management.</p>
                   </CardContent>
                 </Card>
               </Link>
