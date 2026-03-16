@@ -13,7 +13,6 @@ import { collection, addDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import { Html5QrcodeScanner } from "html5-qrcode";
 
 const LAB_ROOMS = [
   "Computer Lab 101",
@@ -31,40 +30,45 @@ export default function LaboratoryUsagePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isScannerActive, setIsScannerActive] = useState(false);
   const [isIdVerified, setIsIdVerified] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<any>(null);
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (isScannerActive && !scannerRef.current) {
-      scannerRef.current = new Html5QrcodeScanner(
-        "qr-reader",
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        false
-      );
+    let html5QrcodeScanner: any = null;
 
-      scannerRef.current.render(
-        (decodedText) => {
-          toast({
-            title: "ID Verified",
-            description: `Professor ID successfully identified: ${decodedText.substring(0, 8)}...`,
-          });
-          setIsIdVerified(true);
-          setIsScannerActive(false);
-          if (scannerRef.current) {
-            scannerRef.current.clear();
-            scannerRef.current = null;
+    if (isScannerActive) {
+      // Dynamic import to prevent SSR issues with window/navigator access
+      import("html5-qrcode").then((lib) => {
+        html5QrcodeScanner = new lib.Html5QrcodeScanner(
+          "qr-reader",
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          false
+        );
+
+        html5QrcodeScanner.render(
+          (decodedText: string) => {
+            toast({
+              title: "ID Verified",
+              description: `Professor ID successfully identified.`,
+            });
+            setIsIdVerified(true);
+            setIsScannerActive(false);
+            if (html5QrcodeScanner) {
+              html5QrcodeScanner.clear().catch(console.error);
+            }
+          },
+          () => {
+            // Scanning...
           }
-        },
-        () => {
-          // Scanning...
-        }
-      );
+        );
+        scannerRef.current = html5QrcodeScanner;
+      });
     }
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear();
+        scannerRef.current.clear().catch(console.error);
         scannerRef.current = null;
       }
     };
@@ -109,11 +113,11 @@ export default function LaboratoryUsagePage() {
         router.push(`/confirmation?room=${encodeURIComponent(room)}`);
       })
       .catch((error) => {
-        console.error("RAW FIRESTORE ERROR:", error);
+        console.error("Submission Error:", error);
         toast({
           variant: "destructive",
           title: "Submission Error",
-          description: error.message || "Permission denied.",
+          description: error.message || "Failed to log usage.",
         });
       })
       .finally(() => {
@@ -156,7 +160,7 @@ export default function LaboratoryUsagePage() {
         <div className="space-y-8">
           <div className="text-center space-y-2">
             <h2 className="text-3xl font-bold text-primary">Lab Room Log</h2>
-            <p className="text-muted-foreground">Scan ID and select the room you are utilizing.</p>
+            <p className="text-muted-foreground">Verify your ID and select the room you are utilizing.</p>
           </div>
 
           <Card className="shadow-lg border-none overflow-hidden">

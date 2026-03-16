@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,8 +9,9 @@ import { Loader2 } from "lucide-react";
 /**
  * Root Entry Page
  * 
- * Automatically redirects the user to the appropriate landing page
- * based on their authentication status and profile setup.
+ * This page serves as a landing entry point. Redirection logic
+ * is primarily handled within the AuthProvider to ensure a 
+ * seamless automatic transition between authentication states.
  */
 export default function RootPage() {
   const { profile, loading } = useAuth();

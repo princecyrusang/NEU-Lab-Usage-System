@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -45,9 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (docSnap.exists()) {
         const data = docSnap.data() as UserProfile;
-        if ((data.role as string) === "user") {
-          data.role = "Professor";
-        }
         setProfile(data);
         return data;
       } else {
@@ -71,12 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (!firebaseAuth) {
-      // If auth service isn't available yet, wait. 
-      // But don't hang indefinitely if it's been several seconds.
-      const timer = setTimeout(() => setLoading(false), 5000);
-      return () => clearTimeout(timer);
-    }
+    if (!firebaseAuth) return;
 
     const unsubscribe = firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
@@ -97,29 +90,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         setUser(firebaseUser);
-        const userProfile = await syncProfile(firebaseUser);
-        
-        if (userProfile?.isBlocked && pathname !== "/access-denied") {
-          router.push("/access-denied");
-        } else if (userProfile && !userProfile.isSetupComplete && pathname !== "/onboarding") {
-          router.push("/onboarding");
-        } else if (userProfile?.isSetupComplete) {
-          if (pathname === "/login" || pathname === "/onboarding") {
-            router.push("/dashboard");
-          }
-        }
+        await syncProfile(firebaseUser);
       } else {
         setUser(null);
         setProfile(null);
-        if (pathname !== "/login" && pathname !== "/" && !pathname.includes("/admin")) {
-          router.push("/login");
-        }
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [firebaseAuth, pathname, router, toast]);
+  }, [firebaseAuth, toast, router]);
+
+  // Handle automatic redirections based on auth state and profile
+  useEffect(() => {
+    if (loading) return;
+
+    const cleanPath = pathname?.replace(/\/$/, '') || "";
+    
+    if (user && profile) {
+      if (profile.isBlocked && cleanPath !== "/access-denied") {
+        router.push("/access-denied");
+      } else if (!profile.isSetupComplete && cleanPath !== "/onboarding" && cleanPath !== "/access-denied") {
+        router.push("/onboarding");
+      } else if (profile.isSetupComplete) {
+        if (cleanPath === "/login" || cleanPath === "" || cleanPath === "/onboarding") {
+          router.push("/dashboard");
+        }
+      }
+    } else if (!user && !loading) {
+      const publicPaths = ["/login", "", "/access-denied"];
+      if (!publicPaths.includes(cleanPath) && !cleanPath.includes("/admin")) {
+        router.push("/login");
+      }
+    }
+  }, [user, profile, loading, pathname, router]);
 
   const login = async () => {
     if (!firebaseAuth) return;
@@ -142,8 +146,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     if (!firebaseAuth) return;
+    setLoading(true);
     await signOut(firebaseAuth);
     router.push("/login");
+    setLoading(false);
   };
 
   return (
