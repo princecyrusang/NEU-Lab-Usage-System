@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
@@ -93,7 +92,7 @@ export default function AdminDashboard() {
   if (!isConfirmedAdmin) return null;
 
   const statCards = [
-    { label: "Today's Laboratory Usage", value: stats.today, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-100" },
+    { label: "Today's Usage", value: stats.today, icon: CalendarDays, color: "text-blue-600", bg: "bg-blue-100" },
     { label: "Weekly Sessions", value: stats.week, icon: History, color: "text-indigo-600", bg: "bg-indigo-100" },
     { label: "Monthly Utilization", value: stats.month, icon: FlaskConical, color: "text-green-600", bg: "bg-green-100" },
     { label: "Total Institutional Logs", value: stats.total, icon: Users, color: "text-orange-600", bg: "bg-orange-100" },
@@ -102,8 +101,8 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8">
       <AdminPageHeader 
-        title="Laboratory Usage Statistics" 
-        description="Monitor faculty utilization of laboratory rooms and specialized equipment." 
+        title="NEU LAB ROOM Statistics" 
+        description="Monitor faculty utilization of NEU LAB ROOM facilities and specialized equipment." 
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -101,7 +100,7 @@ export default function LaboratoryReportsPage() {
             <div className="space-y-2">
               <h3 className="text-2xl font-bold text-destructive">Restricted Access</h3>
               <p className="text-muted-foreground">
-                Institutional reports are only accessible to laboratory administrators.
+                Institutional reports are only accessible to system administrators.
               </p>
             </div>
             <Link href="/dashboard" className="block">
@@ -116,8 +115,8 @@ export default function LaboratoryReportsPage() {
   return (
     <div className="space-y-8">
       <AdminPageHeader 
-        title="Institutional Laboratory Reports" 
-        description="Data analysis of room utilization, faculty activity, and departmental engagement." 
+        title="Institutional Reports" 
+        description="Data analysis of NEU LAB ROOM utilization and faculty engagement." 
       />
 
       {usageLoading ? (

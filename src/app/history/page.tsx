@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -47,7 +46,7 @@ export default function LaboratoryHistoryPage() {
             <div className="space-y-2">
               <h3 className="text-2xl font-bold text-destructive">Restricted Access</h3>
               <p className="text-muted-foreground">
-                Institutional usage logs are only accessible to laboratory administrators.
+                Institutional usage logs are only accessible to system administrators.
               </p>
             </div>
             <Link href="/dashboard" className="block">
@@ -83,7 +82,7 @@ export default function LaboratoryHistoryPage() {
         <div className="space-y-8">
           <AdminPageHeader 
             title="Institutional Usage Logs" 
-            description="Monitoring faculty utilization of laboratory rooms across the university." 
+            description="Monitoring faculty utilization of NEU LAB ROOM facilities across the university." 
             showBackButton={false}
             centered={true}
           />
@@ -115,7 +114,7 @@ export default function LaboratoryHistoryPage() {
                   <div className="space-y-1">
                     <h3 className="text-xl font-semibold">No records found</h3>
                     <p className="text-muted-foreground max-w-xs mx-auto">
-                      There are currently no recorded laboratory sessions in the institutional database.
+                      There are currently no recorded room sessions in the institutional database.
                     </p>
                   </div>
                 </CardContent>
@@ -138,7 +137,7 @@ export default function LaboratoryHistoryPage() {
                           <div className="flex-1 space-y-3 min-w-0">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                               <h4 className="font-bold text-xl text-[#0C46A3] truncate">
-                                {log.roomNumber || "Laboratory Session"}
+                                {log.roomNumber || "Room Session"}
                               </h4>
                               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                                 <Calendar className="w-4 h-4" />

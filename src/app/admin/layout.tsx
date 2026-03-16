@@ -68,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className="hidden md:flex w-64 bg-white border-r flex-col p-6 shadow-sm sticky top-0 h-screen">
         <div className="flex items-center gap-3 text-primary mb-10 px-2">
           <DoorOpen className="w-8 h-8" />
-          <span className="font-bold text-xl tracking-tight">Admin Portal</span>
+          <span className="font-bold text-xl tracking-tight leading-tight">NEU LAB ROOM Admin</span>
         </div>
         
         <div className="flex-1">
@@ -91,7 +91,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <header className="md:hidden bg-primary text-white p-4 flex justify-between items-center shadow-lg">
         <div className="flex items-center gap-2">
           <DoorOpen className="w-6 h-6" />
-          <span className="font-bold">NEU Admin</span>
+          <span className="font-bold">NEU LAB ROOM</span>
         </div>
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
@@ -102,7 +102,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <SheetContent side="left" className="w-64">
             <div className="flex items-center gap-3 text-primary mb-10 mt-6 px-2">
               <DoorOpen className="w-8 h-8" />
-              <span className="font-bold text-xl">Admin Portal</span>
+              <span className="font-bold text-xl leading-tight">NEU LAB ROOM Admin</span>
             </div>
             <NavLinks />
           </SheetContent>
