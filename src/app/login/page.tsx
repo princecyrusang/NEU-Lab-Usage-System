@@ -4,7 +4,7 @@
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FlaskConical, ShieldCheck, QrCode } from "lucide-react";
+import { DoorOpen, ShieldCheck, QrCode } from "lucide-react";
 
 export default function LoginPage() {
   const { login, loading } = useAuth();
@@ -14,10 +14,10 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-2xl border-none">
         <CardHeader className="text-center space-y-4 pt-10">
           <div className="mx-auto w-20 h-20 bg-primary flex items-center justify-center rounded-2xl shadow-lg">
-            <FlaskConical className="w-12 h-12 text-white" />
+            <DoorOpen className="w-12 h-12 text-white" />
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-3xl font-bold tracking-tight text-primary">NEU Laboratory</CardTitle>
+            <CardTitle className="text-3xl font-bold tracking-tight text-primary">NEU LAB ROOM</CardTitle>
             <CardDescription className="text-base">Institutional Faculty Usage Log</CardDescription>
           </div>
         </CardHeader>

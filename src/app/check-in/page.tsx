@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { FlaskConical, User, Building, Mail, ArrowLeft, QrCode, CheckCircle2 } from "lucide-react";
+import { DoorOpen, User, Building, Mail, ArrowLeft, QrCode, CheckCircle2 } from "lucide-react";
 import { collection, addDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -137,8 +137,8 @@ export default function LaboratoryUsagePage() {
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            < FlaskConical className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-tight">NEU Laboratory</h1>
+            <DoorOpen className="w-8 h-8" />
+            <h1 className="text-xl font-bold tracking-tight">NEU LAB ROOM</h1>
           </Link>
           <Link href="/dashboard">
             <Button 
@@ -210,7 +210,7 @@ export default function LaboratoryUsagePage() {
 
               <div className="space-y-6">
                 <div className="flex items-center gap-2 text-primary font-semibold text-lg">
-                  <FlaskConical className="w-5 h-5" />
+                  <DoorOpen className="w-5 h-5" />
                   <Label>Which room are you using today?</Label>
                 </div>
 

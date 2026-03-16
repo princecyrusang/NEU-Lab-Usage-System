@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, LayoutDashboard, Users, BarChart3, LogOut, Menu, Loader2 } from "lucide-react";
+import { DoorOpen, LayoutDashboard, Users, BarChart3, LogOut, Menu, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -67,7 +67,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 bg-white border-r flex-col p-6 shadow-sm sticky top-0 h-screen">
         <div className="flex items-center gap-3 text-primary mb-10 px-2">
-          < GraduationCap className="w-8 h-8" />
+          <DoorOpen className="w-8 h-8" />
           <span className="font-bold text-xl tracking-tight">Admin Portal</span>
         </div>
         
@@ -90,7 +90,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile Header */}
       <header className="md:hidden bg-primary text-white p-4 flex justify-between items-center shadow-lg">
         <div className="flex items-center gap-2">
-          <GraduationCap className="w-6 h-6" />
+          <DoorOpen className="w-6 h-6" />
           <span className="font-bold">NEU Admin</span>
         </div>
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -101,7 +101,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </SheetTrigger>
           <SheetContent side="left" className="w-64">
             <div className="flex items-center gap-3 text-primary mb-10 mt-6 px-2">
-              <GraduationCap className="w-8 h-8" />
+              <DoorOpen className="w-8 h-8" />
               <span className="font-bold text-xl">Admin Portal</span>
             </div>
             <NavLinks />

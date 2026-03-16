@@ -3,7 +3,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, Home, FlaskConical } from "lucide-react";
+import { CheckCircle2, Home, DoorOpen } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
@@ -23,7 +23,7 @@ function ConfirmationContent() {
         </CardHeader>
         <CardContent className="text-center space-y-6 pb-10">
           <div className="p-4 bg-accent/20 rounded-xl border border-accent/30 space-y-2">
-             <FlaskConical className="w-8 h-8 text-primary mx-auto" />
+             <DoorOpen className="w-8 h-8 text-primary mx-auto" />
              <p className="font-bold text-lg text-primary">Thank you for using {room}</p>
           </div>
           

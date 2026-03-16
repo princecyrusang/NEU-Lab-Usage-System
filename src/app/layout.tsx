@@ -6,7 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'NEU Lab Usage System',
+  title: 'NEU LAB ROOM',
   description: 'Institutional Laboratory Room Monitoring and Log System',
 };
 

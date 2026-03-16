@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { doc, updateDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { GraduationCap, ArrowLeft, UserCircle2, Building2, Save } from "lucide-react";
+import { DoorOpen, ArrowLeft, UserCircle2, Building2, Save } from "lucide-react";
 import Link from "next/link";
 
 const COLLEGES_AND_OFFICES = [
@@ -98,8 +98,8 @@ export default function ProfileSettingsPage() {
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <GraduationCap className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-tight">NEU Laboratory</h1>
+            <DoorOpen className="w-8 h-8" />
+            <h1 className="text-xl font-bold tracking-tight">NEU LAB ROOM</h1>
           </Link>
           <Link href="/dashboard">
             <Button 

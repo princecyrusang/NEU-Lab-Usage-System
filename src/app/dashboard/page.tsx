@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { 
   LogOut, 
-  FlaskConical, 
+  DoorOpen, 
   User, 
   History, 
   Settings, 
@@ -36,7 +36,7 @@ export default function LaboratoryDashboard() {
 
   const ALL_ACTIONS = [
     {
-      title: "Log Laboratory Usage",
+      title: "Log Usage",
       description: "Scan your ID to record room entry and start session.",
       icon: QrCode,
       href: "/check-in",
@@ -74,8 +74,8 @@ export default function LaboratoryDashboard() {
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <FlaskConical className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-tight">NEU Laboratory</h1>
+            <DoorOpen className="w-8 h-8" />
+            <h1 className="text-xl font-bold tracking-tight">NEU LAB ROOM</h1>
           </div>
           <Button 
             variant="ghost" 
@@ -141,7 +141,7 @@ export default function LaboratoryDashboard() {
                       <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     <h3 className="text-lg font-bold mb-1">Admin Dashboard</h3>
-                    <p className="text-sm text-muted-foreground">Institutional Laboratory Reports and room management.</p>
+                    <p className="text-sm text-muted-foreground">Institutional Usage Reports and room management.</p>
                   </CardContent>
                 </Card>
               </Link>
@@ -152,7 +152,7 @@ export default function LaboratoryDashboard() {
 
       <footer className="border-t py-6 mt-12 bg-white/50">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-xs text-muted-foreground">New Era University • Laboratory Usage Monitoring System</p>
+          <p className="text-xs text-muted-foreground">New Era University • NEU LAB ROOM Monitoring System</p>
         </div>
       </footer>
     </div>

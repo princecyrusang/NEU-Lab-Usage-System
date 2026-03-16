@@ -7,7 +7,7 @@ import { collection, query, orderBy } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
-  FlaskConical, 
+  DoorOpen, 
   ArrowLeft, 
   Calendar, 
   Clock, 
@@ -64,8 +64,8 @@ export default function LaboratoryHistoryPage() {
       <header className="bg-[#0C46A3] text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <FlaskConical className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-tight">NEU Laboratory</h1>
+            <DoorOpen className="w-8 h-8" />
+            <h1 className="text-xl font-bold tracking-tight">NEU LAB ROOM</h1>
           </Link>
           <Link href="/dashboard">
             <Button 
@@ -132,7 +132,7 @@ export default function LaboratoryHistoryPage() {
                       <CardContent className="p-6">
                         <div className="flex flex-col md:flex-row md:items-center gap-6">
                           <div className="w-14 h-14 bg-accent/30 rounded-2xl flex items-center justify-center text-[#0C46A3] shrink-0 shadow-inner">
-                            <FlaskConical className="w-7 h-7" />
+                            <DoorOpen className="w-7 h-7" />
                           </div>
                           
                           <div className="flex-1 space-y-3 min-w-0">
