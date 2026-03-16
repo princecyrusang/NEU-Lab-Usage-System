@@ -93,9 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
             return;
           }
+          // Profile sync will be handled by the onAuthStateChanged listener
         }
       } catch (error: any) {
         console.error("Auth redirect result error:", error);
+        setLoading(false);
       }
     };
 
@@ -133,6 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return;
 
+    // Path normalization for trailing slashes
     const cleanPath = pathname?.replace(/\/$/, '') || "";
     
     if (user && profile) {

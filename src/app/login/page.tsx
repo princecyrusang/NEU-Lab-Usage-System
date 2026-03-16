@@ -6,16 +6,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DoorOpen, ShieldCheck, QrCode, Loader2 } from "lucide-react";
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const { login, loading, user } = useAuth();
+  const router = useRouter();
 
   // Redirect if user is already detected
   useEffect(() => {
     if (user) {
-      window.location.href = "/dashboard/";
+      router.push("/dashboard/");
     }
-  }, [user]);
+  }, [user, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-[#0C46A3]">
@@ -26,7 +28,7 @@ export default function LoginPage() {
           </div>
           <div className="space-y-1">
             <CardTitle className="text-3xl font-bold tracking-tight text-primary">NEU LAB ROOM</CardTitle>
-            <CardDescription className="text-base">Institutional Faculty Usage Log</CardDescription>
+            <CardDescription className="text-base font-medium">Institutional Faculty Usage Log</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-6 pb-10">
@@ -38,7 +40,7 @@ export default function LoginPage() {
           <Button 
             onClick={login} 
             disabled={loading}
-            className="w-full py-6 text-lg font-semibold shadow-md transition-all hover:scale-[1.01]"
+            className="w-full py-6 text-lg font-semibold shadow-md transition-all hover:scale-[1.01] bg-primary hover:bg-primary/90"
             size="lg"
           >
             {loading ? (
@@ -47,8 +49,8 @@ export default function LoginPage() {
                 Processing Login...
               </span>
             ) : (
-              <>
-                <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+              <div className="flex items-center justify-center gap-3">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                     fill="#4285F4"
@@ -67,7 +69,7 @@ export default function LoginPage() {
                   />
                 </svg>
                 Sign in with @neu.edu.ph
-              </>
+              </div>
             )}
           </Button>
 
@@ -76,13 +78,13 @@ export default function LoginPage() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or using ID</span>
+              <span className="bg-background px-2 text-muted-foreground">Institutional Log</span>
             </div>
           </div>
 
           <div className="p-4 bg-muted/50 rounded-lg flex items-center justify-center gap-2 text-muted-foreground text-sm">
              <QrCode className="w-4 h-4" />
-             <span>ID Scanning available for registered kiosks</span>
+             <span>ID Scanning available at verified stations</span>
           </div>
           
           <p className="text-center text-xs text-muted-foreground pt-4">

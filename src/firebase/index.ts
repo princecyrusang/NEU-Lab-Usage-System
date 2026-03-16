@@ -1,3 +1,4 @@
+
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -8,6 +9,7 @@ import { getFirestore } from 'firebase/firestore'
 // Initialize Firebase with explicit config to prevent production errors
 export function initializeFirebase() {
   if (!getApps().length) {
+    // CRITICAL: Explicitly pass the config object to ensure it is not lost in build optimization
     const firebaseApp = initializeApp(firebaseConfig);
     return getSdks(firebaseApp);
   }
