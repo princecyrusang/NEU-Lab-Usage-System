@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, orderBy, where } from "firebase/firestore";
+import { collection, query, orderBy } from "firebase/firestore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -21,23 +21,14 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 
-/**
- * LaboratoryHistoryPage Component
- * 
- * Displays the institutional history of laboratory room usage.
- * Access restricted exclusively to Administrators.
- */
 export default function LaboratoryHistoryPage() {
   const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
 
-  // Redirect or block normal users
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = profile?.role === "Admin";
 
-  // Memoized query for institutional usage logs
   const usageQuery = useMemoFirebase(() => {
     if (!isAdmin || authLoading || !firestore) return null;
-    // Admins see everything, ordered by time
     return query(collection(firestore, "lab_usage"), orderBy("timestamp", "desc"));
   }, [isAdmin, firestore, authLoading]);
 
@@ -45,7 +36,6 @@ export default function LaboratoryHistoryPage() {
 
   const isLoading = authLoading || (isAdmin && usageLoading);
 
-  // Protected route content for non-admins
   if (!authLoading && !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-[#EEF1F6]">
@@ -60,7 +50,7 @@ export default function LaboratoryHistoryPage() {
                 Institutional usage logs are only accessible to laboratory administrators.
               </p>
             </div>
-            <Link href="/" className="block">
+            <Link href="/dashboard" className="block">
               <Button className="w-full py-6">Return to Dashboard</Button>
             </Link>
           </CardContent>
@@ -73,7 +63,7 @@ export default function LaboratoryHistoryPage() {
     <div className="min-h-screen bg-[#EEF1F6]">
       <header className="bg-[#0C46A3] text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <FlaskConical className="w-8 h-8" />
             <h1 className="text-xl font-bold tracking-tight">NEU Laboratory</h1>
           </Link>
@@ -111,7 +101,7 @@ export default function LaboratoryHistoryPage() {
                   <p className="text-sm text-muted-foreground mt-2">
                     {error.message || "An error occurred while fetching usage logs."}
                   </p>
-                  <Link href="/">
+                  <Link href="/dashboard">
                     <Button variant="outline" className="mt-6">Return to Dashboard</Button>
                   </Link>
                 </CardContent>
@@ -181,14 +171,6 @@ export default function LaboratoryHistoryPage() {
           </div>
         </div>
       </main>
-      
-      <footer className="py-10 border-t mt-12 bg-white/50">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
-            New Era University • Laboratory Services • Institutional Access History
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

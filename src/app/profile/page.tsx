@@ -99,7 +99,7 @@ export default function ProfileSettingsPage() {
         <div className="container mx-auto px-4 flex justify-between items-center">
           <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <GraduationCap className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-tight">NEU Library</h1>
+            <h1 className="text-xl font-bold tracking-tight">NEU Laboratory</h1>
           </Link>
           <Link href="/dashboard">
             <Button 

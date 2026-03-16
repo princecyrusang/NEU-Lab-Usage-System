@@ -18,10 +18,10 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 const LAB_ROOMS = [
   "Computer Lab 101",
   "Computer Lab 102",
-  "Physics Lab 301",
-  "Chemistry Lab 302",
-  "Biology Lab 303",
-  "Multimedia Room 401"
+  "Physics Lab 103",
+  "Chemistry Lab 104",
+  "Biology Lab 105",
+  "Multimedia Room 106"
 ];
 
 export default function LaboratoryUsagePage() {

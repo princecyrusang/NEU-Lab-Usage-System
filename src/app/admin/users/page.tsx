@@ -9,18 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserX, UserCheck } from "lucide-react";
+import { Search, UserX, UserCheck, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
+import Link from "next/link";
 
 export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const firestore = useFirestore();
 
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = profile?.role === "Admin";
 
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || !isAdmin) return null;
@@ -52,13 +53,36 @@ export default function UsersPage() {
     }
   };
 
-  if (!isAdmin) return null;
+  if (authLoading) return null;
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-xl border-none">
+          <CardContent className="pt-10 pb-10 text-center space-y-6">
+            <div className="mx-auto w-20 h-20 bg-destructive/10 flex items-center justify-center rounded-full">
+              <ShieldAlert className="w-12 h-12 text-destructive" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold text-destructive">Restricted Access</h3>
+              <p className="text-muted-foreground">
+                User management is only accessible to laboratory administrators.
+              </p>
+            </div>
+            <Link href="/dashboard" className="block">
+              <Button className="w-full py-6">Return to Dashboard</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <AdminPageHeader 
         title="Manage Users" 
-        description="Search, monitor, and manage library access permissions for all university members." 
+        description="Search, monitor, and manage laboratory access permissions for all university members." 
       />
 
       <Card className="border-none shadow-md">
