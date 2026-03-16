@@ -2,7 +2,8 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   output: 'export',
-  trailingSlash: false,
+  trailingSlash: true,
+  assetPrefix: '',
   typescript: {
     ignoreBuildErrors: true,
   },
