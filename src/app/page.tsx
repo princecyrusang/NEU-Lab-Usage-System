@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,9 +8,8 @@ import { Loader2 } from "lucide-react";
 /**
  * Root Entry Page
  * 
- * This page serves as a landing entry point. Redirection logic
- * is primarily handled within the AuthProvider to ensure a 
- * seamless automatic transition between authentication states.
+ * Handles initial app redirection based on authentication state.
+ * Wrapped in useEffect to ensure safe client-side routing.
  */
 export default function RootPage() {
   const { profile, loading } = useAuth();
@@ -23,16 +21,16 @@ export default function RootPage() {
   }, []);
 
   useEffect(() => {
-    if (isMounted && !loading) {
-      if (profile) {
-        if (!profile.isSetupComplete) {
-          router.push("/onboarding");
-        } else {
-          router.push("/dashboard");
-        }
+    if (!isMounted || loading) return;
+
+    if (profile) {
+      if (!profile.isSetupComplete) {
+        router.replace("/onboarding/");
       } else {
-        router.push("/login");
+        router.replace("/dashboard/");
       }
+    } else {
+      router.replace("/login/");
     }
   }, [profile, loading, router, isMounted]);
 

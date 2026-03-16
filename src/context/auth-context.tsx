@@ -1,8 +1,7 @@
-
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User, signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { User, signOut, signInWithRedirect, GoogleAuthProvider, getRedirectResult } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
 import { useRouter, usePathname } from "next/navigation";
@@ -71,6 +70,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!firebaseAuth) return;
 
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(firebaseAuth);
+        if (result?.user) {
+          // Redirect result handled, auth state listener will take over
+        }
+      } catch (error: any) {
+        console.error("Redirect error:", error);
+      }
+    };
+
+    handleRedirect();
+
     const unsubscribe = firebaseAuth.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
         const email = firebaseUser.email?.toLowerCase() || "";
@@ -101,7 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [firebaseAuth, toast, router]);
 
-  // Handle automatic redirections based on auth state and profile
   useEffect(() => {
     if (loading) return;
 
@@ -131,16 +142,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const googleProvider = new GoogleAuthProvider();
       googleProvider.setCustomParameters({ prompt: "select_account" });
-      await signInWithPopup(firebaseAuth, googleProvider);
+      await signInWithRedirect(firebaseAuth, googleProvider);
     } catch (error: any) {
       setLoading(false);
-      if (error.code !== 'auth/popup-closed-by-user') {
-        toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: error.message || "An unexpected error occurred during sign in.",
-        });
-      }
+      console.error("Login trigger error:", error);
     }
   };
 

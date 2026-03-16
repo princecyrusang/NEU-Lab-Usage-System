@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -64,7 +63,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-[#EEF1F6] flex flex-col md:flex-row">
-      {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 bg-white border-r flex-col p-6 shadow-sm sticky top-0 h-screen">
         <div className="flex items-center gap-3 text-primary mb-10 px-2">
           <DoorOpen className="w-8 h-8" />
@@ -87,7 +85,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Mobile Header */}
       <header className="md:hidden bg-primary text-white p-4 flex justify-between items-center shadow-lg">
         <div className="flex items-center gap-2">
           <DoorOpen className="w-6 h-6" />
@@ -109,7 +106,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </Sheet>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 p-4 md:p-10 overflow-auto">
         {children}
       </main>

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -36,7 +35,7 @@ export default function LoginPage() {
             {loading ? (
               <span className="flex items-center gap-2">
                 <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                Verifying Credentials...
+                Processing Login...
               </span>
             ) : (
               <>
@@ -58,7 +57,7 @@ export default function LoginPage() {
                     fill="#EA4335"
                   />
                 </svg>
-                Sign in with NEU Account
+                Sign in with @neu.edu.ph
               </>
             )}
           </Button>
