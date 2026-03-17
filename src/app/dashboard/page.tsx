@@ -3,9 +3,11 @@
 
 import { useAuth } from "@/context/auth-context";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, orderBy } from "firebase/firestore";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { collection, doc, updateDoc } from "firebase/firestore";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   LogOut, 
   Settings, 
@@ -17,15 +19,39 @@ import {
   Users,
   Database,
   Info,
-  ExternalLink
+  ExternalLink,
+  Building2,
+  UserCircle2
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
+import { useToast } from "@/hooks/use-toast";
+
+const COLLEGES_AND_OFFICES = [
+  "College of Arts and Sciences",
+  "College of Business Administration",
+  "College of Computer Studies",
+  "College of Education",
+  "College of Engineering and Architecture",
+  "College of Music",
+  "College of Nursing",
+  "College of Communication",
+  "College of Criminology",
+  "Center for Medical and Health Sciences",
+  "Graduate School",
+  "College of Law",
+  "Office of the Registrar",
+  "Office of Admissions",
+  "Other Administrative Offices",
+];
 
 export default function LaboratoryDashboard() {
-  const { profile, logout, loading: authLoading } = useAuth();
+  const { profile, user, logout, loading: authLoading } = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
+  const [selectedOffice, setSelectedOffice] = useState<string>("");
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -33,7 +59,7 @@ export default function LaboratoryDashboard() {
 
   const isAdmin = profile?.role === "Admin";
 
-  // Dynamic Global Stats Queries - Now available to all institutional users for "Monitor" feel
+  // Dynamic Global Stats Queries
   const usageQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, "lab_usage");
@@ -48,7 +74,6 @@ export default function LaboratoryDashboard() {
   
   const { data: allUsers, isLoading: usersLoading, error: usersError } = useCollection(usersQuery);
 
-  // Dynamic Statistics Logic
   const stats = useMemo(() => {
     const totalLogs = allUsage?.length || 0;
     const activeUsers = allUsers?.length || 0;
@@ -67,7 +92,6 @@ export default function LaboratoryDashboard() {
       healthBg = "bg-blue-600";
     }
 
-    // Identify Most Utilized Room
     const roomCounts = allUsage?.reduce((acc: Record<string, number>, log) => {
       const room = log.roomNumber || "Unknown";
       acc[room] = (acc[room] || 0) + 1;
@@ -80,6 +104,38 @@ export default function LaboratoryDashboard() {
 
     return { totalLogs, activeUsers, health, healthColor, healthBg, topRoom };
   }, [allUsage, allUsers, usageLoading, usersLoading, usageError, usersError]);
+
+  const handleCompleteSetup = async () => {
+    if (!selectedOffice || !user || !firestore) {
+      toast({
+        variant: "destructive",
+        title: "Incomplete Selection",
+        description: "Please select your College or Office to proceed.",
+      });
+      return;
+    }
+
+    setIsUpdatingProfile(true);
+    try {
+      const userRef = doc(firestore, "users", user.uid);
+      await updateDoc(userRef, {
+        collegeOffice: selectedOffice,
+        isSetupComplete: true,
+      });
+      toast({
+        title: "Profile Updated",
+        description: "Your institutional account setup is complete.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: error.message || "Failed to finalize profile.",
+      });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
 
   if (authLoading || !isMounted || !profile) {
     return (
@@ -130,7 +186,73 @@ export default function LaboratoryDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col relative">
+      {/* Onboarding Modal Overlay */}
+      {!profile.isSetupComplete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <Card className="w-full max-w-lg shadow-2xl border-none">
+            <CardHeader className="space-y-1 pb-8 border-b bg-accent/30 rounded-t-xl">
+              <div className="flex items-center gap-2 text-primary mb-2">
+                <UserCircle2 className="w-6 h-6" />
+                <span className="text-sm font-bold uppercase tracking-wider">Profile Setup Required</span>
+              </div>
+              <CardTitle className="text-2xl font-bold text-primary">Welcome, {profile.fullName}!</CardTitle>
+              <CardDescription className="text-base">
+                To access the laboratory monitoring system, please identify your primary affiliation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-8 space-y-8">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">Institutional Identity</Label>
+                  <div className="p-4 bg-slate-50 rounded-xl text-sm font-bold border border-slate-100 text-slate-700">
+                    {profile.email}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <Label htmlFor="office" className="flex items-center gap-2 font-bold text-slate-900">
+                    <Building2 className="w-4 h-4 text-primary" />
+                    Select your College or Office
+                  </Label>
+                  <Select onValueChange={setSelectedOffice} value={selectedOffice}>
+                    <SelectTrigger id="office" className="w-full py-8 text-lg border-2 border-slate-200 focus:border-primary">
+                      <SelectValue placeholder="Select from university registry..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COLLEGES_AND_OFFICES.map((office) => (
+                        <SelectItem key={office} value={office} className="py-3">
+                          {office}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <Button 
+                  onClick={handleCompleteSetup} 
+                  className="w-full py-8 text-xl font-black shadow-xl transition-all hover:scale-[1.02] active:scale-95 bg-primary"
+                  disabled={isUpdatingProfile || !selectedOffice}
+                >
+                  {isUpdatingProfile ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Finalizing...
+                    </>
+                  ) : "Complete Setup"}
+                </Button>
+                <Button variant="ghost" onClick={logout} className="text-muted-foreground hover:text-destructive">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Cancel and Sign Out
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <header className="bg-primary text-white py-4 shadow-xl sticky top-0 z-50">
         <div className="w-full px-4 md:px-10 flex justify-between items-center">
           <div className="flex items-center gap-3">

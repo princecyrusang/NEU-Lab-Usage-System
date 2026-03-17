@@ -51,18 +51,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(data);
         return data;
       } else {
-        // HARD FIX: Create new profile immediately and await the write
         const newProfile: UserProfile = {
           id: firebaseUser.uid,
           email: firebaseUser.email?.toLowerCase() || "",
           fullName: firebaseUser.displayName || "Institutional Member",
           role: "Professor",
-          collegeOffice: "College of Computer Studies", // Default fallback
+          collegeOffice: "", // Leave empty for onboarding modal
           isSetupComplete: false,
           isBlocked: false,
         };
         
-        // Ensure Firestore write finishes before proceeding
         await setDoc(docRef, newProfile, { merge: true });
         setProfile(newProfile);
         return newProfile;
@@ -92,7 +90,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         
-        // Robustly wait for profile to be ready in Firestore
         await syncProfile(firebaseUser);
         setUser(firebaseUser);
       } else {
@@ -105,7 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [firebaseAuth, firestore, toast]);
 
-  // Use direct window location for deployment stability
   useEffect(() => {
     if (loading) return;
 
@@ -115,9 +111,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user && profile) {
       if (profile.isBlocked && cleanPath !== "/access-denied") {
         window.location.href = "/access-denied/";
-      } else if (!profile.isSetupComplete && cleanPath !== "/onboarding" && cleanPath !== "/access-denied") {
-        window.location.href = "/onboarding/";
-      } else if (profile.isSetupComplete && isLoginPage) {
+      } else if (isLoginPage) {
+        // Redirection to dashboard is handled; onboarding is now a modal inside dashboard
         window.location.href = "/dashboard/";
       }
     } else if (!user && !isLoginPage && cleanPath !== "/access-denied") {

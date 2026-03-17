@@ -8,8 +8,8 @@ import { Loader2 } from "lucide-react";
 /**
  * Root Entry Page
  * 
- * Handles initial app redirection based on authentication state.
- * Uses direct window.location for static hosting compatibility.
+ * Redirection logic simplified to point primarily to Dashboard.
+ * Onboarding is now handled via modal overlay within the Dashboard.
  */
 export default function RootPage() {
   const { profile, loading } = useAuth();
@@ -23,11 +23,8 @@ export default function RootPage() {
     if (!isMounted || loading) return;
 
     if (profile) {
-      if (!profile.isSetupComplete) {
-        window.location.href = "/onboarding/";
-      } else {
-        window.location.href = "/dashboard/";
-      }
+      // Land on dashboard regardless of onboarding status
+      window.location.href = "/dashboard/";
     } else {
       window.location.href = "/login/";
     }
