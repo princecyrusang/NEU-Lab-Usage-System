@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, query, where, limit } from "firebase/firestore";
+import { collection, query, orderBy } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -11,13 +11,13 @@ import {
   Settings, 
   ShieldCheck,
   History,
-  ChevronRight,
   QrCode,
   Loader2,
   Activity,
   Users,
   Database,
-  Info
+  Info,
+  ExternalLink
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
@@ -57,7 +57,7 @@ export default function LaboratoryDashboard() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 text-primary animate-spin" />
-          <p className="text-sm font-medium text-muted-foreground">Initializing Monitor...</p>
+          <p className="text-sm font-medium text-muted-foreground">Initializing NEU Monitor...</p>
         </div>
       </div>
     );
@@ -66,156 +66,192 @@ export default function LaboratoryDashboard() {
   const ACTIONS = [
     {
       title: "Log Usage",
-      description: "Start session.",
+      description: "Start a new laboratory session or verify equipment usage.",
       icon: QrCode,
       href: "/check-in/",
       color: "bg-blue-600",
+      accent: "border-blue-200"
     },
     {
-      title: "Profile",
-      description: "Manage details.",
+      title: "Faculty Profile",
+      description: "Manage your university affiliation and personal identification.",
       icon: Settings,
       href: "/profile/",
-      color: "bg-slate-600",
+      color: "bg-slate-700",
+      accent: "border-slate-200"
     },
     ...(isAdmin ? [
       {
-        title: "History",
-        description: "View logs.",
+        title: "Usage History",
+        description: "View and filter institutional logs across all facilities.",
         icon: History,
         href: "/history/",
         color: "bg-indigo-600",
+        accent: "border-indigo-200"
       },
       {
-        title: "Admin",
-        description: "System control.",
+        title: "Admin Center",
+        description: "System management, user permissions, and institutional reports.",
         icon: ShieldCheck,
         href: "/admin/",
         color: "bg-destructive",
+        accent: "border-destructive/20"
       }
     ] : [])
   ];
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5] flex flex-col">
-      <header className="bg-primary text-white py-3 shadow-md sticky top-0 z-50">
-        <div className="container mx-auto px-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🚪</span>
-            <h1 className="text-lg font-bold tracking-tight">NEU LAB ROOM</h1>
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col">
+      {/* Full-Width Header */}
+      <header className="bg-primary text-white py-4 shadow-xl sticky top-0 z-50">
+        <div className="w-full px-4 md:px-10 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🚪</span>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight leading-none">NEU LAB ROOM</h1>
+              <p className="text-[10px] uppercase font-bold text-blue-200 mt-1 tracking-widest">Institutional Monitor</p>
+            </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout} className="text-white hover:bg-white/10">
-            <LogOut className="w-4 h-4 mr-2" />
-            Exit
+          <Button variant="ghost" size="lg" onClick={logout} className="text-white hover:bg-white/10 font-bold">
+            <LogOut className="w-5 h-5 mr-2" />
+            Exit System
           </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 max-w-6xl flex-1">
-        <div className="space-y-6">
-          {/* Quick Stats Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="border-none shadow-sm bg-white">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-blue-50 rounded-lg text-primary">
-                  <Database className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Usage</p>
-                  <p className="text-2xl font-black">{stats.totalLogs}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-none shadow-sm bg-white">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-cyan-50 rounded-lg text-cyan-600">
-                  <Users className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Registered Faculty</p>
-                  <p className="text-2xl font-black">{stats.activeUsers}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-none shadow-sm bg-white">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 bg-green-50 rounded-lg text-green-600">
-                  <Activity className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">System Status</p>
-                  <p className="text-2xl font-black text-green-600">{stats.health}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+      {/* Maximized Main Layout */}
+      <main className="w-full max-w-[1600px] mx-auto px-4 md:px-10 py-10 flex-1 space-y-10">
+        
+        {/* Expanded Quick Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow overflow-hidden group">
+            <div className="h-1 bg-blue-600 w-full" />
+            <CardContent className="p-8 flex items-center gap-6">
+              <div className="p-4 bg-blue-50 rounded-2xl text-primary group-hover:scale-110 transition-transform">
+                <Database className="w-8 h-8" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Total Usage Sessions</p>
+                <p className="text-4xl font-black text-slate-900">{stats.totalLogs.toLocaleString()}</p>
+              </div>
+            </CardContent>
+          </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Action Grid */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-primary flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-bold text-primary">System Monitor</h2>
-                  <p className="text-sm text-muted-foreground">Welcome back, {profile.fullName}</p>
-                </div>
-                <div className="text-right hidden sm:block">
-                  <p className="text-xs font-bold text-muted-foreground uppercase">{profile.collegeOffice}</p>
-                  <p className="text-xs text-primary font-bold">{profile.role}</p>
+          <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow overflow-hidden group">
+            <div className="h-1 bg-cyan-500 w-full" />
+            <CardContent className="p-8 flex items-center gap-6">
+              <div className="p-4 bg-cyan-50 rounded-2xl text-cyan-600 group-hover:scale-110 transition-transform">
+                <Users className="w-8 h-8" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Registered Faculty</p>
+                <p className="text-4xl font-black text-slate-900">{stats.activeUsers.toLocaleString()}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow overflow-hidden group sm:col-span-2 lg:col-span-1">
+            <div className="h-1 bg-green-500 w-full" />
+            <CardContent className="p-8 flex items-center gap-6">
+              <div className="p-4 bg-green-50 rounded-2xl text-green-600 group-hover:scale-110 transition-transform">
+                <Activity className="w-8 h-8" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">System Network Status</p>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                  <p className="text-4xl font-black text-green-600">{stats.health}</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {ACTIONS.map((action) => (
-                  <Link key={action.title} href={action.href}>
-                    <Card className="h-full hover:shadow-md transition-all active:scale-95 border-none">
-                      <CardContent className="p-5 flex flex-col items-center text-center gap-3">
-                        <div className={`p-3 rounded-full ${action.color} text-white shadow-sm`}>
-                          <action.icon className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-sm">{action.title}</h3>
-                          <p className="text-xs text-muted-foreground">{action.description}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                ))}
+        {/* Fluid Content Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-10">
+          
+          {/* Left: Substantial Action Center (Occupies 75% on large screens) */}
+          <div className="xl:col-span-3 space-y-8">
+            <div className="bg-white p-10 rounded-3xl shadow-sm border-l-[12px] border-primary flex flex-col md:flex-row justify-between items-center gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <h2 className="text-4xl font-black text-primary tracking-tight">Institutional Dashboard</h2>
+                  <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-1 rounded uppercase tracking-tighter">v2.5.0</span>
+                </div>
+                <p className="text-xl text-muted-foreground font-medium">Monitoring access for <span className="text-slate-900 font-bold">{profile.fullName}</span></p>
+              </div>
+              <div className="text-right p-4 bg-slate-50 rounded-2xl border border-slate-100 hidden sm:block">
+                <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">{profile.collegeOffice}</p>
+                <p className="text-lg text-primary font-black uppercase mt-1">{profile.role}</p>
               </div>
             </div>
 
-            {/* Right: System Insights */}
-            <Card className="bg-[#1A1F2C] text-white border-none shadow-xl overflow-hidden">
-              <CardHeader className="border-b border-white/10 pb-4">
-                <div className="flex items-center gap-2">
-                  <Info className="w-4 h-4 text-cyan-400" />
-                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-cyan-400">System Insights</CardTitle>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {ACTIONS.map((action) => (
+                <Link key={action.title} href={action.href} className="group">
+                  <Card className="h-full hover:shadow-2xl transition-all duration-300 active:scale-[0.98] border-none overflow-hidden bg-white">
+                    <CardContent className="p-10 flex flex-col items-start gap-6">
+                      <div className={`p-5 rounded-3xl ${action.color} text-white shadow-xl group-hover:rotate-6 transition-transform`}>
+                        <action.icon className="w-10 h-10" />
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-2xl font-black text-slate-900">{action.title}</h3>
+                          <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-primary transition-colors" />
+                        </div>
+                        <p className="text-lg text-muted-foreground leading-relaxed">{action.description}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: Focused System Insights (Occupies 25% on large screens) */}
+          <div className="xl:col-span-1">
+            <Card className="bg-[#0F172A] text-white border-none shadow-2xl overflow-hidden h-full">
+              <CardHeader className="bg-white/5 border-b border-white/10 p-8">
+                <div className="flex items-center gap-3">
+                  <Info className="w-6 h-6 text-cyan-400" />
+                  <CardTitle className="text-lg font-black uppercase tracking-[0.2em] text-cyan-400">System Insights</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="pt-6 space-y-6">
-                <div className="space-y-1">
-                  <p className="text-xs text-white/50 uppercase font-bold">Peak Engagement</p>
-                  <p className="text-lg font-medium">Weekdays (09:00 - 14:00)</p>
-                  <div className="h-1.5 bg-white/10 rounded-full mt-2">
-                    <div className="h-full bg-cyan-400 rounded-full w-[85%]" />
+              <CardContent className="p-8 space-y-10">
+                <div className="space-y-4">
+                  <div className="flex justify-between items-end">
+                    <p className="text-xs text-white/40 uppercase font-black tracking-widest">Peak Utilization</p>
+                    <span className="text-cyan-400 font-black text-xs">85% Capacity</span>
+                  </div>
+                  <p className="text-2xl font-bold">Weekdays (09:00 - 14:00)</p>
+                  <div className="h-3 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-cyan-400 rounded-full w-[85%] shadow-[0_0_15px_rgba(34,211,238,0.5)]" />
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <p className="text-xs text-white/50 uppercase font-bold">Top Facility</p>
-                  <p className="text-lg font-medium">Computer Lab 101</p>
-                  <p className="text-[10px] text-cyan-400 font-bold uppercase mt-1">Institutional Leader</p>
-                </div>
-
-                <div className="pt-4 border-t border-white/10">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-white/50">Storage Utilization</span>
-                    <span className="text-green-400 font-bold">0.02%</span>
+                <div className="space-y-2 py-6 border-y border-white/10">
+                  <p className="text-xs text-white/40 uppercase font-black tracking-widest">Most Utilized Facility</p>
+                  <p className="text-2xl font-bold text-white">Computer Lab 101</p>
+                  <div className="inline-flex items-center gap-2 bg-cyan-400/10 text-cyan-400 px-3 py-1 rounded-full text-[10px] font-black uppercase mt-4">
+                    <Activity className="w-3 h-3" />
+                    Institutional Leader
                   </div>
                 </div>
 
-                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
-                  <p className="text-[10px] leading-relaxed text-white/70 italic">
-                    "Laboratory usage data is synchronized across all university networks in real-time."
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center text-sm border-b border-white/5 pb-4">
+                    <span className="text-white/40 font-bold">Cloud Sync</span>
+                    <span className="text-green-400 font-black">Active (0.2s)</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm border-b border-white/5 pb-4">
+                    <span className="text-white/40 font-bold">Encrypted Storage</span>
+                    <span className="text-cyan-400 font-black">99.9% Available</span>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-white/5 rounded-2xl border border-white/10 mt-10">
+                  <p className="text-sm leading-relaxed text-white/60 italic font-medium">
+                    "Laboratory usage telemetry is automatically synchronized with the University Central Registry in real-time."
                   </p>
                 </div>
               </CardContent>
@@ -224,10 +260,16 @@ export default function LaboratoryDashboard() {
         </div>
       </main>
 
-      <footer className="py-4 text-center">
-        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
-          New Era University • NEU LAB ROOM Monitor v2.5
-        </p>
+      <footer className="py-10 text-center border-t bg-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center gap-2 grayscale opacity-30">
+             <span className="text-2xl">🚪</span>
+             <span className="font-bold text-slate-900">NEU LAB ROOM</span>
+          </div>
+          <p className="text-[11px] text-slate-400 uppercase font-black tracking-[0.3em]">
+            New Era University • Advanced Information Systems Division
+          </p>
+        </div>
       </footer>
     </div>
   );
