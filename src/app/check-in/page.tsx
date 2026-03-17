@@ -3,13 +3,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/auth-context";
-import { useFirestore } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { DoorOpen, User, Building, Mail, ArrowLeft, QrCode, CheckCircle2 } from "lucide-react";
-import { collection, addDoc } from "firebase/firestore";
+import { DoorOpen, User, Building, Mail, ArrowLeft, QrCode, CheckCircle2, ShieldAlert } from "lucide-react";
+import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -34,11 +34,17 @@ export default function LaboratoryUsagePage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Real-time occupancy check
+  const activeSessionsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, "active_sessions");
+  }, [firestore]);
+  const { data: activeSessions } = useCollection(activeSessionsQuery);
+
   useEffect(() => {
     let html5QrcodeScanner: any = null;
 
     if (isScannerActive) {
-      // Dynamic import to prevent SSR issues with window/navigator access
       import("html5-qrcode").then((lib) => {
         html5QrcodeScanner = new lib.Html5QrcodeScanner(
           "qr-reader",
@@ -47,20 +53,13 @@ export default function LaboratoryUsagePage() {
         );
 
         html5QrcodeScanner.render(
-          (decodedText: string) => {
-            toast({
-              title: "ID Verified",
-              description: `Professor ID successfully identified.`,
-            });
+          () => {
+            toast({ title: "ID Verified" });
             setIsIdVerified(true);
             setIsScannerActive(false);
-            if (html5QrcodeScanner) {
-              html5QrcodeScanner.clear().catch(console.error);
-            }
+            if (html5QrcodeScanner) html5QrcodeScanner.clear().catch(console.error);
           },
-          () => {
-            // Scanning...
-          }
+          () => {}
         );
         scannerRef.current = html5QrcodeScanner;
       });
@@ -74,64 +73,49 @@ export default function LaboratoryUsagePage() {
     };
   }, [isScannerActive, toast]);
 
-  const handleConfirmUsage = () => {
-    if (!user || !profile || !firestore) {
-       toast({
-        variant: "destructive",
-        title: "Session Error",
-        description: "You must be signed in to perform this action.",
-      });
-      return;
-    }
+  const handleConfirmUsage = async () => {
+    if (!user || !profile || !firestore || !room) return;
 
-    if (!room || !isIdVerified) {
-      if (!isIdVerified) {
-        toast({
-          variant: "destructive",
-          title: "ID Required",
-          description: "Please scan your professor ID to verify usage.",
-        });
-      }
+    // The 'Bawal' Rule: Occupancy check
+    const currentSession = activeSessions?.find(s => s.roomId === room);
+    if (currentSession) {
+      toast({
+        variant: "destructive",
+        title: "Room Occupied",
+        description: `This room is currently being utilized by ${currentSession.fullName}.`,
+      });
       return;
     }
 
     setIsSubmitting(true);
     
-    const usageData = {
-      userId: user.uid,
-      fullName: profile.fullName || user.displayName || "",
-      email: user.email,
-      collegeOffice: profile.collegeOffice || "College of Computer Studies",
-      roomNumber: room,
-      timestamp: new Date().toISOString(), 
-    };
-
-    const usageRef = collection(firestore, "lab_usage");
-    
-    addDoc(usageRef, usageData)
-      .then(() => {
-        router.push(`/confirmation?room=${encodeURIComponent(room)}`);
-      })
-      .catch((error) => {
-        console.error("Submission Error:", error);
-        toast({
-          variant: "destructive",
-          title: "Submission Error",
-          description: error.message || "Failed to log usage.",
-        });
-      })
-      .finally(() => {
-        setIsSubmitting(false);
+    try {
+      const activeSessionRef = doc(firestore, "active_sessions", room);
+      await setDoc(activeSessionRef, {
+        roomId: room,
+        userId: user.uid,
+        fullName: profile.fullName || user.displayName || "Institutional Member",
+        email: user.email,
+        collegeOffice: profile.collegeOffice || "Registry Pending",
+        startTime: new Date().toISOString(),
       });
+
+      router.push(`/confirmation?room=${encodeURIComponent(room)}`);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Log Failed",
+        description: "An active session is already registered for this room.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (loading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-16 h-16 bg-primary/20 rounded-full" />
-          <div className="h-4 w-32 bg-muted rounded" />
-        </div>
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
       </div>
     );
   }
@@ -140,17 +124,13 @@ export default function LaboratoryUsagePage() {
     <div className="min-h-screen bg-background pb-12">
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
-          <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <Link href="/dashboard" className="flex items-center gap-3">
             <DoorOpen className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-tight">NEU LAB ROOM</h1>
+            <h1 className="text-xl font-bold">NEU LAB ROOM</h1>
           </Link>
           <Link href="/dashboard">
-            <Button 
-              variant="ghost" 
-              className="text-white hover:bg-white/20 hover:text-white"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
+            <Button variant="ghost" className="text-white hover:bg-white/20">
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </Button>
           </Link>
         </div>
@@ -160,25 +140,25 @@ export default function LaboratoryUsagePage() {
         <div className="space-y-8">
           <div className="text-center space-y-2">
             <h2 className="text-3xl font-bold text-primary">Lab Room Log</h2>
-            <p className="text-muted-foreground">Verify your ID and select the room you are utilizing.</p>
+            <p className="text-muted-foreground">Verify ID and select a vacant room.</p>
           </div>
 
           <Card className="shadow-lg border-none overflow-hidden">
-            <CardHeader className="bg-accent/10 border-b">
+            <CardHeader className="bg-accent/10 border-b p-8">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
                   <User className="w-6 h-6" />
                 </div>
                 <div>
                   <CardTitle className="text-xl">{profile.fullName}</CardTitle>
-                  <CardDescription className="flex flex-col gap-0.5 mt-1">
-                    <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {profile.email}</span>
-                    <span className="flex items-center gap-1.5"><Building className="w-3.5 h-3.5" /> {profile.collegeOffice}</span>
+                  <CardDescription className="flex flex-col mt-1">
+                    <span>{profile.email}</span>
+                    <span>{profile.collegeOffice}</span>
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="pt-8 space-y-8">
+            <CardContent className="pt-8 space-y-8 p-8">
               
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -187,9 +167,8 @@ export default function LaboratoryUsagePage() {
                     Professor ID Verification
                   </Label>
                   {isIdVerified && (
-                    <div className="flex items-center gap-1 text-green-600 font-bold text-sm bg-green-50 px-3 py-1 rounded-full">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Verified
+                    <div className="flex items-center gap-1 text-green-600 font-bold text-xs bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                      <CheckCircle2 className="w-3 h-3" /> Verified
                     </div>
                   )}
                 </div>
@@ -199,45 +178,47 @@ export default function LaboratoryUsagePage() {
                     {!isScannerActive ? (
                       <Button 
                         variant="outline" 
-                        className="w-full py-12 border-dashed border-2 flex flex-col gap-3 hover:bg-accent/10"
+                        className="w-full py-12 border-dashed border-2 flex flex-col gap-3"
                         onClick={() => setIsScannerActive(true)}
                       >
                         <QrCode className="w-8 h-8 text-primary" />
-                        <span>Click to Start Scanner</span>
+                        <span>Tap to Scan ID</span>
                       </Button>
                     ) : (
-                      <div id="qr-reader" className="w-full rounded-xl overflow-hidden border-2 border-primary/20 shadow-inner bg-muted" />
+                      <div id="qr-reader" className="w-full rounded-xl overflow-hidden border-2 bg-muted" />
                     )}
                   </div>
                 )}
               </div>
 
               <div className="space-y-6">
-                <div className="flex items-center gap-2 text-primary font-semibold text-lg">
-                  <DoorOpen className="w-5 h-5" />
-                  <Label>Which room are you using today?</Label>
-                </div>
-
+                <Label className="text-lg font-bold">Select Laboratory Room</Label>
                 <RadioGroup 
                   onValueChange={setRoom} 
                   className="grid grid-cols-1 sm:grid-cols-2 gap-4"
                   disabled={!isIdVerified}
                 >
-                  {LAB_ROOMS.map((option) => (
-                    <div key={option} className={`flex items-center space-x-3 p-4 rounded-xl border-2 border-muted transition-all cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${!isIdVerified ? 'opacity-50 cursor-not-allowed' : 'hover:bg-accent/5 hover:border-accent'}`}>
-                      <RadioGroupItem value={option} id={option} className="text-primary border-primary" disabled={!isIdVerified} />
-                      <Label htmlFor={option} className={`flex-1 font-medium ${!isIdVerified ? 'cursor-not-allowed' : 'cursor-pointer'}`}>{option}</Label>
-                    </div>
-                  ))}
+                  {LAB_ROOMS.map((option) => {
+                    const isOccupied = activeSessions?.some(s => s.roomId === option);
+                    return (
+                      <div key={option} className={`relative flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/5 ${isOccupied ? 'opacity-40 cursor-not-allowed border-red-100 bg-red-50' : 'hover:border-primary/30 border-muted'}`}>
+                        <RadioGroupItem value={option} id={option} disabled={!isIdVerified || isOccupied} />
+                        <Label htmlFor={option} className={`flex-1 font-medium ${isOccupied ? 'cursor-not-allowed text-red-700' : 'cursor-pointer'}`}>
+                          {option}
+                          {isOccupied && <span className="block text-[10px] font-black uppercase text-red-500 mt-0.5 flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> Occupied</span>}
+                        </Label>
+                      </div>
+                    );
+                  })}
                 </RadioGroup>
               </div>
 
               <Button 
                 onClick={handleConfirmUsage}
                 disabled={!room || isSubmitting || !isIdVerified}
-                className="w-full py-8 text-xl font-bold shadow-xl transition-transform active:scale-95"
+                className="w-full py-8 text-xl font-bold shadow-xl"
               >
-                {isSubmitting ? "Logging Usage..." : "Confirm Usage Log"}
+                {isSubmitting ? "Syncing Log..." : "Start Laboratory Session"}
               </Button>
             </CardContent>
           </Card>

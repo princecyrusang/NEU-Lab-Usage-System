@@ -5,93 +5,54 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
       "type": "object",
-      "description": "Represents a professor or faculty member's profile within the NEU Laboratory Usage Log system.",
+      "description": "Represents a professor or faculty member's profile.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the UserProfile entity (Firebase UID)."
-        },
-        "email": {
-          "type": "string",
-          "description": "The user's institutional email address (@neu.edu.ph).",
-          "format": "email"
-        },
-        "fullName": {
-          "type": "string",
-          "description": "The user's full name."
-        },
-        "role": {
-          "type": "string",
-          "description": "The role of the user (e.g., admin, professor)."
-        },
-        "collegeOffice": {
-          "type": "string",
-          "description": "The college or department the professor belongs to."
-        },
-        "isSetupComplete": {
-          "type": "boolean",
-          "description": "Onboarding status."
-        },
-        "isBlocked": {
-          "type": "boolean",
-          "description": "Access restriction status."
-        }
+        "id": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "fullName": { "type": "string" },
+        "role": { "type": "string" },
+        "collegeOffice": { "type": "string" },
+        "isSetupComplete": { "type": "boolean" },
+        "isBlocked": { "type": "boolean" }
       },
-      "required": [
-        "id",
-        "email",
-        "fullName",
-        "role",
-        "collegeOffice",
-        "isSetupComplete",
-        "isBlocked"
-      ]
+      "required": ["id", "email", "fullName", "role", "collegeOffice", "isSetupComplete", "isBlocked"]
     },
     "LabUsage": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "LabUsage",
       "type": "object",
-      "description": "Records a single usage log of a laboratory room by a professor.",
+      "description": "Historical record of laboratory usage.",
       "properties": {
-        "id": {
-          "type": "string"
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the professor's UserProfile."
-        },
-        "fullName": {
-          "type": "string"
-        },
-        "email": {
-          "type": "string"
-        },
-        "collegeOffice": {
-          "type": "string"
-        },
-        "roomNumber": {
-          "type": "string",
-          "description": "The laboratory room number being used."
-        },
-        "timestamp": {
-          "type": "string",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "collegeOffice": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "durationMinutes": { "type": "number" }
       },
-      "required": [
-        "userId",
-        "fullName",
-        "email",
-        "collegeOffice",
-        "roomNumber",
-        "timestamp"
-      ]
+      "required": ["userId", "fullName", "email", "collegeOffice", "roomNumber", "startTime", "endTime"]
+    },
+    "ActiveSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ActiveSession",
+      "type": "object",
+      "description": "Currently active laboratory usage session.",
+      "properties": {
+        "roomId": { "type": "string", "description": "The normalized name of the room." },
+        "userId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "collegeOffice": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "userId", "fullName", "startTime"]
     }
   },
   "auth": {
-    "providers": [
-      "google.com"
-    ]
+    "providers": ["google.com"]
   },
   "firestore": {
     "structure": [
@@ -99,9 +60,7 @@
         "path": "/users/{userId}",
         "definition": {
           "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
+          "schema": { "$ref": "#/backend/entities/UserProfile" },
           "description": "User profiles for faculty and administrators."
         }
       },
@@ -109,13 +68,18 @@
         "path": "/lab_usage/{logId}",
         "definition": {
           "entityName": "LabUsage",
-          "schema": {
-            "$ref": "#/backend/entities/LabUsage"
-          },
-          "description": "Global collection of laboratory usage logs."
+          "schema": { "$ref": "#/backend/entities/LabUsage" },
+          "description": "Historical usage logs."
+        }
+      },
+      {
+        "path": "/active_sessions/{roomId}",
+        "definition": {
+          "entityName": "ActiveSession",
+          "schema": { "$ref": "#/backend/entities/ActiveSession" },
+          "description": "Real-time room occupancy tracking."
         }
       }
-    ],
-    "reasoning": "Standardizing on a top-level collection for laboratory usage allows for comprehensive institutional reporting and simplified role-based security filtering."
+    ]
   }
 }

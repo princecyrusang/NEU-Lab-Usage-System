@@ -1,15 +1,13 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- Helper Functions ---
 
     function isSignedIn() {
       return request.auth != null;
     }
 
     function isInstitutionalEmail() {
-      // Use case-insensitive regex for robust domain validation
       return isSignedIn() && 
              request.auth.token.email != null && 
              request.auth.token.email.matches('(?i).*@neu\\.edu\\.ph$');
@@ -19,39 +17,29 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function getUserData(uid) {
-      let path = /databases/$(database)/documents/users/$(uid);
-      return exists(path) ? get(path).data : null;
-    }
-
     function isAdmin() {
-      // Optimized check: return false immediately if not signed in
-      if (!isSignedIn()) return false;
-      let data = getUserData(request.auth.uid);
-      return data != null && data.role == 'Admin';
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return isSignedIn() && userDoc != null && userDoc.data.role == 'Admin';
     }
-
-    // --- Collection Rules ---
 
     match /users/{userId} {
-      // Allow individual access or institutional listing for dashboard counts
-      allow read: if isOwner(userId) || isInstitutionalEmail() || isAdmin();
-      
-      // Allow creation and update for institutional users on their own doc
+      allow read: if isInstitutionalEmail();
       allow create, update: if (isOwner(userId) && isInstitutionalEmail()) || isAdmin();
-      
       allow delete: if isAdmin();
     }
 
     match /lab_usage/{logId} {
-      // Allow all institutional users to read logs for the System Monitor dashboards
       allow read: if isInstitutionalEmail();
-      
-      // Allow logging of usage sessions
-      allow create: if isInstitutionalEmail() &&
-                    request.resource.data.userId == request.auth.uid;
-                    
+      allow create: if isInstitutionalEmail();
       allow update, delete: if isAdmin();
+    }
+
+    match /active_sessions/{roomId} {
+      allow read: if isInstitutionalEmail();
+      // Allow creation only if the room isn't already occupied
+      allow create: if isInstitutionalEmail() && !exists(/databases/$(database)/documents/active_sessions/$(roomId));
+      // Allow deletion by the occupant or an admin
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
   }
 }

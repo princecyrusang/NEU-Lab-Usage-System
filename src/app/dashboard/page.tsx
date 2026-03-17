@@ -3,7 +3,14 @@
 
 import { useAuth } from "@/context/auth-context";
 import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
-import { collection, doc, updateDoc } from "firebase/firestore";
+import { 
+  collection, 
+  doc, 
+  updateDoc, 
+  deleteDoc, 
+  addDoc, 
+  serverTimestamp 
+} from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -15,13 +22,14 @@ import {
   History,
   QrCode,
   Loader2,
-  Activity,
   Users,
   Database,
-  Info,
-  ExternalLink,
   Building2,
-  UserCircle2
+  UserCircle2,
+  Clock,
+  AlertTriangle,
+  DoorClosed,
+  DoorOpen
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
@@ -45,6 +53,48 @@ const COLLEGES_AND_OFFICES = [
   "Other Administrative Offices",
 ];
 
+const LAB_ROOMS = [
+  "Computer Lab 101",
+  "Computer Lab 102",
+  "Physics Lab 103",
+  "Chemistry Lab 104",
+  "Biology Lab 105",
+  "Multimedia Room 106"
+];
+
+function LiveTimer({ startTime }: { startTime: any }) {
+  const [elapsed, setElapsed] = useState("");
+  const [isWarning, setIsWarning] = useState(false);
+
+  useEffect(() => {
+    const start = startTime?.toDate ? startTime.toDate() : new Date(startTime);
+    
+    const update = () => {
+      const now = new Date();
+      const diffMs = now.getTime() - start.getTime();
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      
+      // Warning if > 3 hours
+      setIsWarning(diffHrs >= 3);
+      
+      setElapsed(`${diffHrs}h ${diffMins}m`);
+    };
+
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+
+  return (
+    <div className={`flex items-center gap-1.5 font-black text-sm ${isWarning ? 'text-destructive animate-pulse' : 'text-primary'}`}>
+      {isWarning && <AlertTriangle className="w-4 h-4" />}
+      <Clock className="w-4 h-4" />
+      {elapsed}
+    </div>
+  );
+}
+
 export default function LaboratoryDashboard() {
   const { profile, user, logout, loading: authLoading } = useAuth();
   const firestore = useFirestore();
@@ -52,6 +102,7 @@ export default function LaboratoryDashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [selectedOffice, setSelectedOffice] = useState<string>("");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isStopping, setIsStopping] = useState<string | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -59,62 +110,56 @@ export default function LaboratoryDashboard() {
 
   const isAdmin = profile?.role === "Admin";
 
-  // Dynamic Global Stats Queries
-  const usageQuery = useMemoFirebase(() => {
+  const activeSessionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return collection(firestore, "lab_usage");
+    return collection(firestore, "active_sessions");
   }, [firestore]);
   
-  const { data: allUsage, isLoading: usageLoading, error: usageError } = useCollection(usageQuery);
-
-  const usersQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return collection(firestore, "users");
-  }, [firestore]);
-  
-  const { data: allUsers, isLoading: usersLoading, error: usersError } = useCollection(usersQuery);
+  const { data: activeSessions, isLoading: sessionsLoading } = useCollection(activeSessionsQuery);
 
   const stats = useMemo(() => {
-    const totalLogs = allUsage?.length || 0;
-    const activeUsers = allUsers?.length || 0;
+    const totalActive = activeSessions?.length || 0;
+    const availableRooms = LAB_ROOMS.length - totalActive;
+    return { totalActive, availableRooms };
+  }, [activeSessions]);
+
+  const handleStopSession = async (session: any) => {
+    if (!firestore) return;
+    setIsStopping(session.id);
     
-    let health = "Operational";
-    let healthColor = "text-green-600";
-    let healthBg = "bg-green-500";
+    try {
+      const start = session.startTime?.toDate ? session.startTime.toDate() : new Date(session.startTime);
+      const now = new Date();
+      const diffMins = Math.floor((now.getTime() - start.getTime()) / 60000);
 
-    if (usageError || usersError) {
-      health = "Degraded";
-      healthColor = "text-destructive";
-      healthBg = "bg-destructive";
-    } else if (usageLoading || usersLoading) {
-      health = "Syncing...";
-      healthColor = "text-blue-600";
-      healthBg = "bg-blue-600";
-    }
+      // 1. Add to history
+      await addDoc(collection(firestore, "lab_usage"), {
+        ...session,
+        endTime: now.toISOString(),
+        durationMinutes: diffMins,
+        timestamp: now.toISOString() // for reports
+      });
 
-    const roomCounts = allUsage?.reduce((acc: Record<string, number>, log) => {
-      const room = log.roomNumber || "Unknown";
-      acc[room] = (acc[room] || 0) + 1;
-      return acc;
-    }, {});
+      // 2. Delete from active
+      await deleteDoc(doc(firestore, "active_sessions", session.id));
 
-    const topRoom = roomCounts 
-      ? Object.entries(roomCounts).sort((a, b) => b[1] - a[1])[0]?.[0] 
-      : "Computer Lab 101";
-
-    return { totalLogs, activeUsers, health, healthColor, healthBg, topRoom };
-  }, [allUsage, allUsers, usageLoading, usersLoading, usageError, usersError]);
-
-  const handleCompleteSetup = async () => {
-    if (!selectedOffice || !user || !firestore) {
+      toast({
+        title: "Session Ended",
+        description: `Laboratory ${session.roomId} is now available.`,
+      });
+    } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Incomplete Selection",
-        description: "Please select your College or Office to proceed.",
+        title: "Error",
+        description: "Failed to end session. Please try again.",
       });
-      return;
+    } finally {
+      setIsStopping(null);
     }
+  };
 
+  const handleCompleteSetup = async () => {
+    if (!selectedOffice || !user || !firestore) return;
     setIsUpdatingProfile(true);
     try {
       const userRef = doc(firestore, "users", user.uid);
@@ -122,20 +167,9 @@ export default function LaboratoryDashboard() {
         collegeOffice: selectedOffice,
         isSetupComplete: true,
       });
-      
-      toast({
-        title: "Profile Updated",
-        description: "Your institutional account setup is complete.",
-      });
-      
-      // Note: The onboarding modal will automatically hide because 
-      // the AuthContext uses onSnapshot and will see isSetupComplete: true.
+      toast({ title: "Setup Complete" });
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: error.message || "Failed to finalize profile.",
-      });
+      toast({ variant: "destructive", title: "Setup Failed" });
     } finally {
       setIsUpdatingProfile(false);
     }
@@ -144,114 +178,41 @@ export default function LaboratoryDashboard() {
   if (authLoading || !isMounted || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 text-primary animate-spin" />
-          <p className="text-sm font-medium text-muted-foreground">Initializing NEU Monitor...</p>
-        </div>
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
       </div>
     );
   }
 
-  const ACTIONS = [
-    {
-      title: "Log Usage",
-      description: "Start a new laboratory session or verify equipment usage.",
-      icon: QrCode,
-      href: "/check-in/",
-      color: "bg-blue-600",
-      accent: "border-blue-200"
-    },
-    {
-      title: "Faculty Profile",
-      description: "Manage your university affiliation and personal identification.",
-      icon: Settings,
-      href: "/profile/",
-      color: "bg-slate-700",
-      accent: "border-slate-200"
-    },
-    ...(isAdmin ? [
-      {
-        title: "Usage History",
-        description: "View and filter institutional logs across all facilities.",
-        icon: History,
-        href: "/history/",
-        color: "bg-indigo-600",
-        accent: "border-indigo-200"
-      },
-      {
-        title: "Admin Center",
-        description: "System management, user permissions, and institutional reports.",
-        icon: ShieldCheck,
-        href: "/admin/",
-        color: "bg-destructive",
-        accent: "border-destructive/20"
-      }
-    ] : [])
-  ];
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col relative">
-      {/* Onboarding Modal Overlay */}
       {!profile.isSetupComplete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
           <Card className="w-full max-w-lg shadow-2xl border-none overflow-visible">
             <CardHeader className="space-y-1 pb-8 border-b bg-accent/30 rounded-t-xl">
-              <div className="flex items-center gap-2 text-primary mb-2">
-                <UserCircle2 className="w-6 h-6" />
-                <span className="text-sm font-bold uppercase tracking-wider">Profile Setup Required</span>
-              </div>
               <CardTitle className="text-2xl font-bold text-primary">Welcome, {profile.fullName}!</CardTitle>
-              <CardDescription className="text-base">
-                To access the laboratory monitoring system, please identify your primary affiliation.
-              </CardDescription>
+              <CardDescription>Please identify your university affiliation to continue.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-8 space-y-8 overflow-visible">
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">Institutional Identity</Label>
-                  <div className="p-4 bg-slate-50 rounded-xl text-sm font-bold border border-slate-100 text-slate-700">
-                    {profile.email}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <Label htmlFor="office" className="flex items-center gap-2 font-bold text-slate-900">
-                    <Building2 className="w-4 h-4 text-primary" />
-                    Select your College or Office
-                  </Label>
-                  <Select onValueChange={setSelectedOffice} value={selectedOffice}>
-                    <SelectTrigger id="office" className="w-full py-8 text-lg border-2 border-slate-200 focus:border-primary">
-                      <SelectValue placeholder="Select from university registry..." />
-                    </SelectTrigger>
-                    <SelectContent className="z-[150]">
-                      {COLLEGES_AND_OFFICES.map((office) => (
-                        <SelectItem key={office} value={office} className="py-3">
-                          {office}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <CardContent className="pt-8 space-y-6 overflow-visible">
+              <div className="space-y-4">
+                <Label className="font-bold">College or Office</Label>
+                <Select onValueChange={setSelectedOffice} value={selectedOffice}>
+                  <SelectTrigger className="w-full py-8 text-lg border-2">
+                    <SelectValue placeholder="Select from registry..." />
+                  </SelectTrigger>
+                  <SelectContent className="z-[150]">
+                    {COLLEGES_AND_OFFICES.map((o) => (
+                      <SelectItem key={o} value={o}>{o}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-
-              <div className="flex flex-col gap-4">
-                <Button 
-                  onClick={handleCompleteSetup} 
-                  className="w-full py-8 text-xl font-black shadow-xl transition-all hover:scale-[1.02] active:scale-95 bg-primary"
-                  disabled={isUpdatingProfile || !selectedOffice}
-                >
-                  {isUpdatingProfile ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Finalizing...
-                    </>
-                  ) : "Complete Setup"}
-                </Button>
-                <Button variant="ghost" onClick={logout} className="text-muted-foreground hover:text-destructive">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Cancel and Sign Out
-                </Button>
-              </div>
+              <Button 
+                onClick={handleCompleteSetup} 
+                className="w-full py-8 text-xl font-black bg-primary"
+                disabled={isUpdatingProfile || !selectedOffice}
+              >
+                {isUpdatingProfile ? "Saving..." : "Complete Setup"}
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -262,167 +223,175 @@ export default function LaboratoryDashboard() {
           <div className="flex items-center gap-3">
             <span className="text-3xl">🚪</span>
             <div>
-              <h1 className="text-xl font-bold tracking-tight leading-none">NEU LAB ROOM</h1>
-              <p className="text-[10px] uppercase font-bold text-blue-200 mt-1 tracking-widest">Institutional Monitor</p>
+              <h1 className="text-xl font-bold">NEU LAB ROOM</h1>
+              <p className="text-[10px] uppercase font-bold text-blue-200 mt-1">Real-Time Management</p>
             </div>
           </div>
-          <Button variant="ghost" size="lg" onClick={logout} className="text-white hover:bg-white/10 font-bold">
+          <Button variant="ghost" onClick={logout} className="text-white hover:bg-white/10 font-bold">
             <LogOut className="w-5 h-5 mr-2" />
-            Exit System
+            Sign Out
           </Button>
         </div>
       </header>
 
       <main className="w-full max-w-[1600px] mx-auto px-4 md:px-10 py-10 flex-1 space-y-10">
         
-        {/* Real-time Statistics Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow overflow-hidden group">
-            <div className="h-1 bg-blue-600 w-full" />
+        {/* Quick Summary Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card className="border-none shadow-md bg-white border-l-4 border-blue-600">
             <CardContent className="p-8 flex items-center gap-6">
-              <div className="p-4 bg-blue-50 rounded-2xl text-primary group-hover:scale-110 transition-transform">
-                <Database className="w-8 h-8" />
-              </div>
+              <div className="p-4 bg-blue-50 rounded-2xl text-primary"><DoorClosed className="w-8 h-8" /></div>
               <div>
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Total Usage Sessions</p>
-                <p className="text-4xl font-black text-slate-900">
-                  {usageLoading ? <Loader2 className="w-8 h-8 animate-spin" /> : stats.totalLogs.toLocaleString()}
-                </p>
+                <p className="text-xs font-bold text-muted-foreground uppercase">Occupied Facilities</p>
+                <p className="text-3xl font-black">{stats.totalActive}</p>
               </div>
             </CardContent>
           </Card>
-
-          <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow overflow-hidden group">
-            <div className="h-1 bg-cyan-500 w-full" />
+          <Card className="border-none shadow-md bg-white border-l-4 border-green-500">
             <CardContent className="p-8 flex items-center gap-6">
-              <div className="p-4 bg-cyan-50 rounded-2xl text-cyan-600 group-hover:scale-110 transition-transform">
-                <Users className="w-8 h-8" />
-              </div>
+              <div className="p-4 bg-green-50 rounded-2xl text-green-600"><DoorOpen className="w-8 h-8" /></div>
               <div>
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Registered Faculty</p>
-                <p className="text-4xl font-black text-slate-900">
-                  {usersLoading ? <Loader2 className="w-8 h-8 animate-spin" /> : stats.activeUsers.toLocaleString()}
-                </p>
+                <p className="text-xs font-bold text-muted-foreground uppercase">Available Rooms</p>
+                <p className="text-3xl font-black">{stats.availableRooms}</p>
               </div>
             </CardContent>
           </Card>
-
-          <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow overflow-hidden group sm:col-span-2 lg:col-span-1">
-            <div className="h-1 bg-green-500 w-full" />
+          <Card className="border-none shadow-md bg-[#0F172A] text-white lg:col-span-1">
             <CardContent className="p-8 flex items-center gap-6">
-              <div className="p-4 bg-green-50 rounded-2xl text-green-600 group-hover:scale-110 transition-transform">
-                <Activity className="w-8 h-8" />
-              </div>
+              <div className="p-4 bg-white/10 rounded-2xl"><Users className="w-8 h-8 text-cyan-400" /></div>
               <div>
-                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">System Network Status</p>
-                <div className="flex items-center gap-2">
-                  <span className={`w-3 h-3 ${stats.healthBg} rounded-full animate-pulse`} />
-                  <p className={`text-4xl font-black ${stats.healthColor}`}>{stats.health}</p>
-                </div>
+                <p className="text-xs font-bold text-white/40 uppercase">Faculty Network</p>
+                <p className="text-3xl font-black text-cyan-400">Institutional Sync Active</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-10">
-          <div className="xl:col-span-3 space-y-8">
-            <div className="bg-white p-10 rounded-3xl shadow-sm border-l-[12px] border-primary flex flex-col md:flex-row justify-between items-center gap-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-4xl font-black text-primary tracking-tight">Institutional Dashboard</h2>
-                  <span className="bg-primary/10 text-primary text-[10px] font-black px-2 py-1 rounded uppercase tracking-tighter">Live Monitor</span>
-                </div>
-                <p className="text-xl text-muted-foreground font-medium">Monitoring access for <span className="text-slate-900 font-bold">{profile.fullName}</span></p>
-              </div>
-              <div className="text-right p-4 bg-slate-50 rounded-2xl border border-slate-100 hidden sm:block">
-                <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">{profile.collegeOffice}</p>
-                <p className="text-lg text-primary font-black uppercase mt-1">{profile.role}</p>
-              </div>
+          {/* Room Availability Map */}
+          <div className="xl:col-span-3 space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+                <Database className="w-6 h-6 text-primary" />
+                Laboratory Availability Map
+              </h2>
+              <Link href="/check-in/">
+                <Button className="bg-primary shadow-lg font-bold">
+                  <QrCode className="w-4 h-4 mr-2" />
+                  New Log
+                </Button>
+              </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {ACTIONS.map((action) => (
-                <Link key={action.title} href={action.href} className="group">
-                  <Card className="h-full hover:shadow-2xl transition-all duration-300 active:scale-[0.98] border-none overflow-hidden bg-white">
-                    <CardContent className="p-10 flex flex-col items-start gap-6">
-                      <div className={`p-5 rounded-3xl ${action.color} text-white shadow-xl group-hover:rotate-6 transition-transform`}>
-                        <action.icon className="w-10 h-10" />
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-2xl font-black text-slate-900">{action.title}</h3>
-                          <ExternalLink className="w-4 h-4 text-slate-300 group-hover:text-primary transition-colors" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {LAB_ROOMS.map((roomName) => {
+                const session = activeSessions?.find(s => s.roomId === roomName);
+                const isOccupied = !!session;
+                const isMySession = session?.userId === user?.uid;
+
+                return (
+                  <Card key={roomName} className={`border-none shadow-md overflow-hidden transition-all duration-300 ${isOccupied ? 'ring-2 ring-destructive/20' : 'hover:shadow-xl'}`}>
+                    <div className={`h-2 ${isOccupied ? 'bg-destructive' : 'bg-green-500'}`} />
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg font-bold">{roomName}</CardTitle>
+                        <div className={`px-2 py-1 rounded text-[10px] font-black uppercase ${isOccupied ? 'bg-destructive/10 text-destructive' : 'bg-green-100 text-green-700'}`}>
+                          {isOccupied ? 'Occupied' : 'Available'}
                         </div>
-                        <p className="text-lg text-muted-foreground leading-relaxed">{action.description}</p>
                       </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {isOccupied ? (
+                        <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-xs font-bold text-slate-600">
+                              {session.fullName?.[0]}
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                              <p className="text-xs font-bold truncate">{session.fullName}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{session.collegeOffice}</p>
+                            </div>
+                          </div>
+                          <div className="pt-2 border-t flex justify-between items-center">
+                            <LiveTimer startTime={session.startTime} />
+                            {isMySession && (
+                              <Button 
+                                size="sm" 
+                                variant="destructive" 
+                                className="h-8 text-[10px] font-black uppercase"
+                                onClick={() => handleStopSession(session)}
+                                disabled={isStopping === session.id}
+                              >
+                                {isStopping === session.id ? "Stopping..." : "End Session"}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center text-slate-300">
+                          <DoorOpen className="w-12 h-12 mx-auto opacity-20" />
+                          <p className="text-xs mt-2 font-medium">Ready for utilization</p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           </div>
 
-          <div className="xl:col-span-1">
-            <Card className="bg-[#0F172A] text-white border-none shadow-2xl overflow-hidden h-full">
-              <CardHeader className="bg-white/5 border-b border-white/10 p-8">
-                <div className="flex items-center gap-3">
-                  <Info className="w-6 h-6 text-cyan-400" />
-                  <CardTitle className="text-lg font-black uppercase tracking-[0.2em] text-cyan-400">System Insights</CardTitle>
-                </div>
+          {/* Quick Actions & Navigation Sidebar */}
+          <div className="xl:col-span-1 space-y-6">
+            <Card className="border-none shadow-md bg-white overflow-hidden">
+              <div className="h-1 bg-primary" />
+              <CardHeader className="bg-slate-50 border-b">
+                <CardTitle className="text-sm font-black uppercase tracking-wider text-slate-500">Quick Access</CardTitle>
               </CardHeader>
-              <CardContent className="p-8 space-y-10">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-end">
-                    <p className="text-xs text-white/40 uppercase font-black tracking-widest">Network Throughput</p>
-                    <span className="text-cyan-400 font-black text-xs">Verified</span>
+              <CardContent className="p-0">
+                <Link href="/profile/" className="flex items-center gap-4 p-6 hover:bg-slate-50 transition-colors border-b">
+                  <div className="p-3 bg-blue-100 rounded-xl text-primary"><Settings className="w-5 h-5" /></div>
+                  <div>
+                    <p className="font-bold text-sm">Faculty Profile</p>
+                    <p className="text-xs text-muted-foreground">Manage identity</p>
                   </div>
-                  <p className="text-2xl font-bold">Real-time Cloud Sync</p>
-                  <div className="h-3 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-400 rounded-full w-[100%] shadow-[0_0_15px_rgba(34,211,238,0.5)]" />
-                  </div>
-                </div>
-
-                <div className="space-y-2 py-6 border-y border-white/10">
-                  <p className="text-xs text-white/40 uppercase font-black tracking-widest">Most Utilized Facility</p>
-                  <p className="text-2xl font-bold text-white">{stats.topRoom}</p>
-                  <div className="inline-flex items-center gap-2 bg-cyan-400/10 text-cyan-400 px-3 py-1 rounded-full text-[10px] font-black uppercase mt-4">
-                    <Activity className="w-3 h-3" />
-                    Live Activity Leader
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center text-sm border-b border-white/5 pb-4">
-                    <span className="text-white/40 font-bold">Auth Latency</span>
-                    <span className="text-green-400 font-black">&lt; 0.1s</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm border-b border-white/5 pb-4">
-                    <span className="text-white/40 font-bold">Data Redundancy</span>
-                    <span className="text-cyan-400 font-black">Triple-Replicated</span>
-                  </div>
-                </div>
-
-                <div className="p-6 bg-white/5 rounded-2xl border border-white/10 mt-10">
-                  <p className="text-sm leading-relaxed text-white/60 italic font-medium">
-                    "Institutional laboratory usage telemetry is automatically synchronized with the University Central Registry."
-                  </p>
-                </div>
+                </Link>
+                {isAdmin && (
+                  <>
+                    <Link href="/history/" className="flex items-center gap-4 p-6 hover:bg-slate-50 transition-colors border-b">
+                      <div className="p-3 bg-indigo-100 rounded-xl text-indigo-600"><History className="w-5 h-5" /></div>
+                      <div>
+                        <p className="font-bold text-sm">Usage History</p>
+                        <p className="text-xs text-muted-foreground">Historical telemetry</p>
+                      </div>
+                    </Link>
+                    <Link href="/admin/" className="flex items-center gap-4 p-6 hover:bg-slate-50 transition-colors">
+                      <div className="p-3 bg-red-100 rounded-xl text-destructive"><ShieldCheck className="w-5 h-5" /></div>
+                      <div>
+                        <p className="font-bold text-sm">Admin Center</p>
+                        <p className="text-xs text-muted-foreground">System control</p>
+                      </div>
+                    </Link>
+                  </>
+                )}
               </CardContent>
             </Card>
+
+            <div className="p-8 bg-[#0F172A] rounded-3xl text-white space-y-4 shadow-xl">
+              <div className="flex items-center gap-2 text-cyan-400 font-black text-xs uppercase tracking-widest">
+                <Clock className="w-4 h-4" /> System Telemetry
+              </div>
+              <p className="text-sm leading-relaxed text-slate-400">
+                "Laboratory occupancy is tracked in real-time. Unauthorized sessions exceeding 3 hours will be flagged for review."
+              </p>
+            </div>
           </div>
         </div>
       </main>
 
       <footer className="py-10 text-center border-t bg-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="flex items-center gap-2 grayscale opacity-30">
-             <span className="text-2xl">🚪</span>
-             <span className="font-bold text-slate-900">NEU LAB ROOM</span>
-          </div>
-          <p className="text-[11px] text-slate-400 uppercase font-black tracking-[0.3em]">
-            New Era University • Advanced Information Systems Division
-          </p>
-        </div>
+        <p className="text-[11px] text-slate-400 uppercase font-black tracking-[0.3em]">
+          New Era University • Real-Time Information Systems Division
+        </p>
       </footer>
     </div>
   );
