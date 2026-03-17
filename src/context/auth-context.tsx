@@ -7,7 +7,7 @@ import {
   signOut, 
   onAuthStateChanged 
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { useAuth as useFirebaseAuth, useFirestore } from "@/firebase";
 import { usePathname } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
@@ -40,41 +40,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { toast } = useToast();
 
-  const syncProfile = async (firebaseUser: User) => {
-    if (!firestore) return null;
-    try {
-      const docRef = doc(firestore, "users", firebaseUser.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data() as UserProfile;
-        setProfile(data);
-        return data;
-      } else {
-        const newProfile: UserProfile = {
-          id: firebaseUser.uid,
-          email: firebaseUser.email?.toLowerCase() || "",
-          fullName: firebaseUser.displayName || "Institutional Member",
-          role: "Professor",
-          collegeOffice: "", // Leave empty for onboarding modal
-          isSetupComplete: false,
-          isBlocked: false,
-        };
-        
-        await setDoc(docRef, newProfile, { merge: true });
-        setProfile(newProfile);
-        return newProfile;
-      }
-    } catch (error) {
-      console.error("Critical Profile Sync Error:", error);
-      return null;
-    }
-  };
-
   useEffect(() => {
-    if (!firebaseAuth) return;
+    if (!firebaseAuth || !firestore) return;
 
-    const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
+    let unsubscribeProfile: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser) {
         const email = firebaseUser.email?.toLowerCase() || "";
         if (!email.endsWith("@neu.edu.ph")) {
@@ -90,16 +61,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         
-        await syncProfile(firebaseUser);
         setUser(firebaseUser);
+
+        // Set up real-time listener for the user profile
+        const profileRef = doc(firestore, "users", firebaseUser.uid);
+        unsubscribeProfile = onSnapshot(profileRef, async (docSnap) => {
+          if (docSnap.exists()) {
+            setProfile(docSnap.data() as UserProfile);
+            setLoading(false);
+          } else {
+            // Document doesn't exist yet, create it with defaults
+            const newProfile: UserProfile = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email?.toLowerCase() || "",
+              fullName: firebaseUser.displayName || "Institutional Member",
+              role: "Professor",
+              collegeOffice: "",
+              isSetupComplete: false,
+              isBlocked: false,
+            };
+            
+            try {
+              await setDoc(profileRef, newProfile, { merge: true });
+              // Snapshot will trigger again automatically after creation
+            } catch (err) {
+              console.error("Profile creation error:", err);
+              setLoading(false);
+            }
+          }
+        }, (error) => {
+          console.error("Profile listener error:", error);
+          setLoading(false);
+        });
+
       } else {
         setUser(null);
         setProfile(null);
+        if (unsubscribeProfile) unsubscribeProfile();
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, [firebaseAuth, firestore, toast]);
 
   useEffect(() => {
@@ -112,7 +118,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profile.isBlocked && cleanPath !== "/access-denied") {
         window.location.href = "/access-denied/";
       } else if (isLoginPage) {
-        // Redirection to dashboard is handled; onboarding is now a modal inside dashboard
         window.location.href = "/dashboard/";
       }
     } else if (!user && !isLoginPage && cleanPath !== "/access-denied") {

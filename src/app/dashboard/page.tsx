@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -121,10 +122,14 @@ export default function LaboratoryDashboard() {
         collegeOffice: selectedOffice,
         isSetupComplete: true,
       });
+      
       toast({
         title: "Profile Updated",
         description: "Your institutional account setup is complete.",
       });
+      
+      // Note: The onboarding modal will automatically hide because 
+      // the AuthContext uses onSnapshot and will see isSetupComplete: true.
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -218,7 +223,7 @@ export default function LaboratoryDashboard() {
                     <SelectTrigger id="office" className="w-full py-8 text-lg border-2 border-slate-200 focus:border-primary">
                       <SelectValue placeholder="Select from university registry..." />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[150]">
                       {COLLEGES_AND_OFFICES.map((office) => (
                         <SelectItem key={office} value={office} className="py-3">
                           {office}
