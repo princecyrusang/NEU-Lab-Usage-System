@@ -8,11 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Area, 
   AreaChart, 
+  Bar,
+  BarChart,
   ResponsiveContainer, 
   Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid 
+  CartesianGrid,
+  Cell
 } from "recharts";
 import { useAuth } from "@/context/auth-context";
 import { Loader2, ShieldAlert, TrendingUp, Landmark, Monitor } from "lucide-react";
@@ -31,11 +34,38 @@ import {
   endOfWeek,
   startOfYear,
   endOfYear,
-  subYears,
-  startOfToday
+  subYears
 } from "date-fns";
 
 type FilterType = "weekly" | "monthly" | "yearly";
+
+// Institutional Registry Constants
+const INSTITUTIONAL_ROOMS = [
+  "Computer Lab 101",
+  "Computer Lab 102",
+  "Physics Lab 103",
+  "Chemistry Lab 104",
+  "Biology Lab 105",
+  "Multimedia Room 106"
+];
+
+const INSTITUTIONAL_COLLEGES = [
+  "College of Arts and Sciences",
+  "College of Business Administration",
+  "College of Computer Studies",
+  "College of Education",
+  "College of Engineering and Architecture",
+  "College of Music",
+  "College of Nursing",
+  "College of Communication",
+  "College of Criminology",
+  "Center for Medical and Health Sciences",
+  "Graduate School",
+  "College of Law",
+  "Office of the Registrar",
+  "Office of Admissions",
+  "Other Administrative Offices",
+];
 
 export default function LaboratoryReportsPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -95,31 +125,21 @@ export default function LaboratoryReportsPage() {
       return new Date(ts);
     };
 
-    // Group by Room (Top 10)
-    const rooms = logs.reduce((acc: any[], log) => {
-      const room = log.roomNumber || "Unknown Room";
-      const existing = acc.find(a => a.name === room);
-      if (existing) {
-        existing.value += 1;
-      } else {
-        acc.push({ name: room, value: 1 });
-      }
-      return acc;
-    }, []).sort((a, b) => b.value - a.value).slice(0, 10);
+    // 1. Normalized Room Utilization
+    const roomMap = INSTITUTIONAL_ROOMS.map(name => ({ name, value: 0 }));
+    logs.forEach(log => {
+      const room = roomMap.find(r => r.name === log.roomNumber);
+      if (room) room.value++;
+    });
 
-    // Group by College/Department
-    const colleges = logs.reduce((acc: any[], log) => {
-      const office = log.collegeOffice || "Unknown Office";
-      const existing = acc.find(a => a.name === office);
-      if (existing) {
-        existing.value += 1;
-      } else {
-        acc.push({ name: office, value: 1 });
-      }
-      return acc;
-    }, []).sort((a, b) => b.value - a.value);
+    // 2. Normalized Engagement by Office
+    const collegeMap = INSTITUTIONAL_COLLEGES.map(name => ({ name, value: 0 }));
+    logs.forEach(log => {
+      const college = collegeMap.find(c => c.name === log.collegeOffice);
+      if (college) college.value++;
+    });
 
-    // Dynamic Usage Trend Aggregation
+    // 3. Temporal Usage Trends
     let trend: { date: string, count: number, fullDate: string }[] = [];
 
     if (timeFilter === "weekly") {
@@ -163,7 +183,11 @@ export default function LaboratoryReportsPage() {
       });
     }
 
-    return { roomData: rooms, collegeData: colleges, usageTrend: trend };
+    return { 
+      roomData: roomMap, 
+      collegeData: collegeMap, 
+      usageTrend: trend 
+    };
   }, [logs, timeFilter, filterStartDate, filterEndDate]);
 
   if (authLoading || !isMounted) {
@@ -293,69 +317,79 @@ export default function LaboratoryReportsPage() {
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Room Distribution */}
+          {/* Normalized Room Utilization Bar Chart */}
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <div className="h-1 bg-cyan-500" />
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2 font-black">
                 <Monitor className="w-5 h-5 text-cyan-600" />
-                Top Room Utilization
+                Room Utilization (Institutional Registry)
               </CardTitle>
             </CardHeader>
             <CardContent className="h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.roomData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                   <defs>
-                    <linearGradient id="colorRoom" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.02}/>
-                    </linearGradient>
-                  </defs>
+                <BarChart data={stats.roomData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
                     dataKey="name" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fontSize: 9, fontWeight: 600 }}
+                    tick={{ fontSize: 9, fontWeight: 700, fill: "#64748B" }}
                     angle={-45}
                     textAnchor="end"
                     height={60}
                   />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#64748B" }} />
                   <Tooltip 
+                     cursor={{ fill: '#f1f5f9' }}
                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                   />
-                  <Area type="monotone" dataKey="value" stroke="#0891b2" fill="url(#colorRoom)" strokeWidth={3} />
-                </AreaChart>
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {stats.roomData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.value > 0 ? '#0891b2' : '#e2e8f0'} />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Engagement by Office */}
+          {/* Normalized Engagement by Office Bar Chart */}
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <div className="h-1 bg-indigo-500" />
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2 font-black">
                 <Landmark className="w-5 h-5 text-indigo-600" />
-                Engagement by Office
+                Engagement by College/Office
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-[350px]">
+            <CardContent className="h-[450px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.collegeData} layout="vertical" margin={{ top: 10, right: 30, left: 40, bottom: 10 }}>
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                <BarChart 
+                  data={stats.collegeData} 
+                  layout="vertical" 
+                  margin={{ top: 10, right: 30, left: 40, bottom: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#64748B" }} />
                   <YAxis 
                     dataKey="name" 
                     type="category" 
-                    width={120} 
-                    tick={{ fontSize: 9, fontWeight: 600 }} 
+                    width={140} 
+                    tick={{ fontSize: 9, fontWeight: 700, fill: "#1E293B" }} 
                     axisLine={false} 
                     tickLine={false} 
                   />
                   <Tooltip 
+                     cursor={{ fill: '#f1f5f9' }}
                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                   />
-                  <Area type="monotone" dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.1} strokeWidth={3} />
-                </AreaChart>
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                    {stats.collegeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.value > 0 ? '#6366f1' : '#e2e8f0'} />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
