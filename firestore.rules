@@ -12,7 +12,7 @@ service cloud.firestore {
     function isInstitutionalEmail() {
       return isSignedIn() && 
              request.auth.token.email != null && 
-             request.auth.token.email.toLowerCase().endsWith('@neu.edu.ph');
+             request.auth.token.email.lower().endsWith('@neu.edu.ph');
     }
 
     function isOwner(userId) {
