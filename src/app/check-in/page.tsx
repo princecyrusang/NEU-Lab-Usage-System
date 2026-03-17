@@ -8,20 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { DoorOpen, User, Building, Mail, ArrowLeft, QrCode, CheckCircle2, ShieldAlert } from "lucide-react";
-import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { DoorOpen, User, Building, Mail, ArrowLeft, QrCode, CheckCircle2, ShieldAlert, Loader2 } from "lucide-react";
+import { collection, doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 
-const LAB_ROOMS = [
-  "Computer Lab 101",
-  "Computer Lab 102",
-  "Physics Lab 103",
-  "Chemistry Lab 104",
-  "Biology Lab 105",
-  "Multimedia Room 106"
-];
+const LAB_ROOMS = Array.from({ length: 10 }, (_, i) => `Computer Lab ${101 + i}`);
 
 export default function LaboratoryUsagePage() {
   const { profile, user, loading } = useAuth();

@@ -40,14 +40,7 @@ import {
 type FilterType = "weekly" | "monthly" | "yearly";
 
 // Institutional Registry Constants
-const INSTITUTIONAL_ROOMS = [
-  "Computer Lab 101",
-  "Computer Lab 102",
-  "Physics Lab 103",
-  "Chemistry Lab 104",
-  "Biology Lab 105",
-  "Multimedia Room 106"
-];
+const INSTITUTIONAL_ROOMS = Array.from({ length: 10 }, (_, i) => `Computer Lab ${101 + i}`);
 
 const INSTITUTIONAL_COLLEGES = [
   "College of Arts and Sciences",

@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { 
   LogOut, 
   Settings, 
@@ -30,10 +31,11 @@ import {
   AlertTriangle,
   DoorClosed,
   DoorOpen,
-  User
+  User,
+  Activity
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 const COLLEGES_AND_OFFICES = [
@@ -54,18 +56,14 @@ const COLLEGES_AND_OFFICES = [
   "Other Administrative Offices",
 ];
 
-const LAB_ROOMS = [
-  "Computer Lab 101",
-  "Computer Lab 102",
-  "Physics Lab 103",
-  "Chemistry Lab 104",
-  "Biology Lab 105",
-  "Multimedia Room 106",
-  "Research Hub 201",
-  "Tech Suite 202"
-];
+const LAB_ROOMS = Array.from({ length: 10 }, (_, i) => `Computer Lab ${101 + i}`);
 
-function LiveTimer({ startTime }: { startTime: any }) {
+interface LiveTimerProps {
+  startTime: any;
+  onAutoClose: () => void;
+}
+
+function LiveTimer({ startTime, onAutoClose }: LiveTimerProps) {
   const [elapsed, setElapsed] = useState("");
   const [isWarning, setIsWarning] = useState(false);
 
@@ -75,24 +73,31 @@ function LiveTimer({ startTime }: { startTime: any }) {
     const update = () => {
       const now = new Date();
       const diffMs = now.getTime() - start.getTime();
+      
+      // Auto-close logic: 3 hours = 10,800,000 ms
+      if (diffMs >= 10800000) {
+        onAutoClose();
+        return;
+      }
+
       const diffHrs = Math.floor(diffMs / 3600000);
       const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      const diffSecs = Math.floor((diffMs % 60000) / 1000);
       
-      // Warning if > 3 hours
-      setIsWarning(diffHrs >= 3);
+      setIsWarning(diffHrs >= 2); // Warn at 2 hours
       
-      setElapsed(`${diffHrs}h ${diffMins}m`);
+      setElapsed(`${diffHrs}h ${diffMins}m ${diffSecs}s`);
     };
 
     update();
-    const interval = setInterval(update, 60000);
+    const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
-  }, [startTime]);
+  }, [startTime, onAutoClose]);
 
   return (
-    <div className={`flex items-center gap-1.5 font-black text-sm ${isWarning ? 'text-destructive animate-pulse' : 'text-primary'}`}>
-      {isWarning && <AlertTriangle className="w-4 h-4" />}
-      <Clock className="w-4 h-4" />
+    <div className={`flex items-center gap-1.5 font-mono font-black text-xs ${isWarning ? 'text-destructive animate-pulse' : 'text-primary'}`}>
+      {isWarning && <AlertTriangle className="w-3.5 h-3.5" />}
+      <Clock className="w-3.5 h-3.5" />
       {elapsed}
     </div>
   );
@@ -113,53 +118,73 @@ export default function LaboratoryDashboard() {
 
   const isAdmin = profile?.role === "Admin";
 
+  // Real-time Active Sessions
   const activeSessionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, "active_sessions");
   }, [firestore]);
-  
   const { data: activeSessions, isLoading: sessionsLoading } = useCollection(activeSessionsQuery);
 
-  const stats = useMemo(() => {
-    const totalActive = activeSessions?.length || 0;
-    const availableRooms = LAB_ROOMS.length - totalActive;
-    return { totalActive, availableRooms };
-  }, [activeSessions]);
+  // Global Stats
+  const usageQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, "lab_usage");
+  }, [firestore]);
+  const { data: allHistory } = useCollection(usageQuery);
 
-  const handleStopSession = async (session: any) => {
-    if (!firestore) return;
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, "users");
+  }, [firestore]);
+  const { data: allUsers } = useCollection(usersQuery);
+
+  const stats = useMemo(() => {
+    return {
+      active: activeSessions?.length || 0,
+      available: LAB_ROOMS.length - (activeSessions?.length || 0),
+      totalHistory: allHistory?.length || 0,
+      totalFaculty: allUsers?.length || 0,
+    };
+  }, [activeSessions, allHistory, allUsers]);
+
+  const handleStopSession = useCallback(async (session: any, isAuto = false) => {
+    if (!firestore || isStopping === session.id) return;
     setIsStopping(session.id);
     
     try {
       const start = session.startTime?.toDate ? session.startTime.toDate() : new Date(session.startTime);
       const now = new Date();
-      const diffMins = Math.floor((now.getTime() - start.getTime()) / 60000);
+      const diffMs = now.getTime() - start.getTime();
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      const durationStr = isAuto ? "3h 0m (Auto-Closed)" : `${diffHrs}h ${diffMins}m`;
 
-      // 1. Add to history
+      // 1. Move to permanent history
       await addDoc(collection(firestore, "lab_usage"), {
         ...session,
         endTime: now.toISOString(),
-        durationMinutes: diffMins,
-        timestamp: now.toISOString()
+        durationMinutes: Math.min(Math.floor(diffMs / 60000), 180),
+        totalDuration: durationStr,
+        timestamp: now.toISOString(),
+        isAutoClosed: isAuto
       });
 
-      // 2. Delete from active
+      // 2. Clear active status
       await deleteDoc(doc(firestore, "active_sessions", session.id));
 
       toast({
-        title: "Session Ended",
-        description: `Laboratory ${session.roomId} is now available.`,
+        title: isAuto ? "Session Auto-Closed" : "Session Ended",
+        description: isAuto 
+          ? `Laboratory ${session.roomId} reached the 3-hour hard limit.`
+          : `Laboratory ${session.roomId} is now available for the next faculty member.`,
+        variant: isAuto ? "destructive" : "default"
       });
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to end session. Please try again.",
-      });
+      console.error("Stop session error:", error);
     } finally {
       setIsStopping(null);
     }
-  };
+  }, [firestore, isStopping, toast]);
 
   const handleCompleteSetup = async () => {
     if (!selectedOffice || !user || !firestore) return;
@@ -180,14 +205,15 @@ export default function LaboratoryDashboard() {
 
   if (authLoading || !isMounted || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-[#F1F5F9]">
         <Loader2 className="w-10 h-10 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] flex flex-col relative">
+    <div className="min-h-screen bg-[#F1F5F9] flex flex-col w-full max-w-none">
+      {/* Onboarding Modal */}
       {!profile.isSetupComplete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
           <Card className="w-full max-w-lg shadow-2xl border-none overflow-visible">
@@ -221,112 +247,132 @@ export default function LaboratoryDashboard() {
         </div>
       )}
 
-      <header className="bg-primary text-white py-4 shadow-xl sticky top-0 z-50">
+      {/* Full Width Top Nav */}
+      <header className="bg-primary text-white py-5 shadow-xl sticky top-0 z-50">
         <div className="w-full px-6 md:px-12 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🚪</span>
+          <div className="flex items-center gap-4">
+            <div className="bg-white/10 p-2 rounded-xl">
+              <Database className="w-7 h-7 text-cyan-300" />
+            </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">NEU LAB ROOM</h1>
-              <p className="text-[10px] uppercase font-black text-blue-200 mt-1">Institutional Monitor</p>
+              <h1 className="text-xl font-black tracking-tight leading-none uppercase">NEU LAB ROOM</h1>
+              <p className="text-[10px] font-black text-cyan-400 mt-1 uppercase tracking-widest">Real-Time Management System</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-             <div className="hidden md:block text-right mr-2">
-                <p className="text-sm font-bold leading-none">{profile.fullName}</p>
-                <p className="text-[10px] uppercase font-black text-blue-200 mt-1">{isAdmin ? "System Administrator" : "Professor"}</p>
+          <div className="flex items-center gap-6">
+             <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/10">
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-widest">System Operational</span>
              </div>
-             <Button variant="ghost" onClick={logout} className="text-white hover:bg-white/10 font-bold px-3">
-               <LogOut className="w-5 h-5" />
+             <Button variant="ghost" onClick={logout} className="text-white hover:bg-white/10 h-10 w-10 p-0">
+               <LogOut className="w-6 h-6" />
              </Button>
           </div>
         </div>
       </header>
 
-      <main className="w-full px-6 md:px-12 py-8 flex-1 flex flex-col space-y-8">
+      <main className="w-full px-6 md:px-12 py-10 flex-1 flex flex-col space-y-10">
         
-        {/* Top Summaries */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card className="bg-white/80 backdrop-blur-md shadow-lg border-none border-l-4 border-blue-600">
-            <CardContent className="p-8 flex items-center gap-6">
-              <div className="p-4 bg-blue-50 rounded-2xl text-primary"><DoorClosed className="w-10 h-10" /></div>
+        {/* Dynamic Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="border-none shadow-md bg-white border-l-4 border-blue-600">
+            <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active Sessions</p>
-                <p className="text-4xl font-black text-slate-900">{stats.totalActive}</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Total Usage</p>
+                <p className="text-3xl font-black text-slate-900">{stats.totalHistory}</p>
               </div>
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><History className="w-6 h-6" /></div>
             </CardContent>
           </Card>
-          <Card className="bg-white/80 backdrop-blur-md shadow-lg border-none border-l-4 border-green-500">
-            <CardContent className="p-8 flex items-center gap-6">
-              <div className="p-4 bg-green-50 rounded-2xl text-green-600"><DoorOpen className="w-10 h-10" /></div>
+          <Card className="border-none shadow-md bg-white border-l-4 border-green-500">
+            <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Available Facilities</p>
-                <p className="text-4xl font-black text-slate-900">{stats.availableRooms}</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Registered Faculty</p>
+                <p className="text-3xl font-black text-slate-900">{stats.totalFaculty}</p>
               </div>
+              <div className="p-3 bg-green-50 text-green-600 rounded-xl"><Users className="w-6 h-6" /></div>
             </CardContent>
           </Card>
-          <Card className="bg-[#0F172A] text-white shadow-2xl border-none">
-            <CardContent className="p-8 flex items-center gap-6">
-              <div className="p-4 bg-white/10 rounded-2xl"><Users className="w-10 h-10 text-cyan-400" /></div>
+          <Card className="border-none shadow-md bg-white border-l-4 border-cyan-500">
+            <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Global Status</p>
-                <p className="text-2xl font-black text-cyan-400">Institutional Sync Live</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Active Labs</p>
+                <p className="text-3xl font-black text-slate-900">{stats.active}</p>
+              </div>
+              <div className="p-3 bg-cyan-50 text-cyan-600 rounded-xl"><Activity className="w-6 h-6" /></div>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-md bg-[#0F172A] text-white overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" />
+            <CardContent className="p-6 flex items-center gap-4 relative z-10">
+              <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center text-cyan-400">
+                <UserCircle2 className="w-7 h-7" />
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-sm font-black truncate">{profile.fullName}</p>
+                <Badge variant="outline" className="text-[9px] font-black uppercase tracking-tighter text-cyan-400 border-cyan-400/30 px-1.5 h-4 mt-1">
+                  {isAdmin ? "System Administrator" : "Professor"}
+                </Badge>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content Area */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 flex-1">
+        {/* Main Grid Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
           
-          {/* Laboratory Availability Map (3/4 Width) */}
+          {/* Laboratory Availability Map (Fills Space) */}
           <div className="lg:col-span-3 space-y-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between">
                <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                 <Database className="w-7 h-7 text-primary" />
+                 <Database className="w-8 h-8 text-primary" />
                  Laboratory Availability Map
                </h2>
-               <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full shadow-sm text-[10px] font-black uppercase text-slate-400">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  Real-Time Updates Active
+               <div className="bg-white px-4 py-2 rounded-xl shadow-sm border text-[10px] font-black uppercase text-slate-500 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  Live Syncing Active
                </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
               {LAB_ROOMS.map((roomName) => {
                 const session = activeSessions?.find(s => s.roomId === roomName);
                 const isOccupied = !!session;
                 const isMySession = session?.userId === user?.uid;
 
                 return (
-                  <Card key={roomName} className={`bg-white/80 backdrop-blur-md border-none shadow-lg transition-all duration-300 group ${isOccupied ? 'ring-2 ring-destructive/20' : 'hover:scale-[1.02] hover:shadow-2xl'}`}>
-                    <div className={`h-2 w-full ${isOccupied ? 'bg-destructive' : 'bg-green-500'}`} />
-                    <CardHeader className="pb-4">
-                      <div className="flex justify-between items-start">
-                        <CardTitle className="text-xl font-black text-slate-800">{roomName}</CardTitle>
-                        <div className={`px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-tighter ${isOccupied ? 'bg-destructive/10 text-destructive' : 'bg-green-100 text-green-700'}`}>
+                  <Card key={roomName} className={`bg-white border-none shadow-lg transition-all duration-300 relative group ${isOccupied ? 'ring-2 ring-destructive/20' : 'hover:scale-[1.02]'}`}>
+                    <div className={`h-2 w-full rounded-t-lg ${isOccupied ? 'bg-destructive' : 'bg-green-500'}`} />
+                    <CardHeader className="pb-3 pt-5">
+                      <div className="flex flex-col gap-1">
+                        <CardTitle className="text-base font-black text-slate-800 truncate">{roomName}</CardTitle>
+                        <div className={`w-fit px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${isOccupied ? 'bg-destructive/10 text-destructive' : 'bg-green-100 text-green-700'}`}>
                           {isOccupied ? 'Occupied' : 'Available'}
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="pb-6">
                       {isOccupied ? (
-                        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xs font-black text-primary">
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2.5 p-2 bg-slate-50 rounded-lg">
+                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-[10px] font-black text-primary shrink-0">
                               {session.fullName?.[0]}
                             </div>
                             <div className="flex-1 overflow-hidden">
-                              <p className="text-xs font-black text-slate-900 truncate">{session.fullName}</p>
-                              <p className="text-[10px] font-bold text-muted-foreground truncate">{session.collegeOffice}</p>
+                              <p className="text-[10px] font-black text-slate-900 truncate">{session.fullName}</p>
+                              <p className="text-[9px] font-bold text-muted-foreground truncate">{session.collegeOffice}</p>
                             </div>
                           </div>
-                          <div className="pt-4 border-t flex justify-between items-center">
-                            <LiveTimer startTime={session.startTime} />
-                            {isMySession && (
+                          <div className="pt-3 border-t flex flex-col gap-3">
+                            <LiveTimer 
+                              startTime={session.startTime} 
+                              onAutoClose={() => handleStopSession(session, true)} 
+                            />
+                            {(isMySession || isAdmin) && (
                               <Button 
                                 size="sm" 
                                 variant="destructive" 
-                                className="h-8 text-[9px] font-black uppercase tracking-widest px-3"
+                                className="w-full h-8 text-[9px] font-black uppercase tracking-widest"
                                 onClick={() => handleStopSession(session)}
                                 disabled={isStopping === session.id}
                               >
@@ -336,9 +382,9 @@ export default function LaboratoryDashboard() {
                           </div>
                         </div>
                       ) : (
-                        <div className="py-12 text-center">
-                          <DoorOpen className="w-14 h-14 mx-auto text-slate-200 group-hover:text-green-500 transition-colors duration-500" />
-                          <p className="text-[10px] mt-4 font-black uppercase text-slate-300 tracking-widest">Ready for Use</p>
+                        <div className="py-10 text-center flex flex-col items-center">
+                          <DoorOpen className="w-12 h-12 text-slate-100 group-hover:text-green-500/20 transition-all duration-500" />
+                          <p className="text-[9px] mt-4 font-black uppercase text-slate-300 tracking-[0.2em]">Ready</p>
                         </div>
                       )}
                     </CardContent>
@@ -348,105 +394,63 @@ export default function LaboratoryDashboard() {
             </div>
           </div>
 
-          {/* Quick Actions & Navigation Sidebar (1/4 Width) */}
+          {/* Side Panel Actions */}
           <div className="lg:col-span-1 space-y-6">
-            
-            {/* Identity Card */}
-            <Card className="bg-white/80 backdrop-blur-md border-none shadow-lg overflow-hidden">
-               <div className="h-1.5 w-full bg-primary" />
-               <CardContent className="p-8 space-y-6">
-                  <div className="flex items-center gap-4">
-                     <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                        <User className="w-8 h-8" />
-                     </div>
-                     <div>
-                        <p className="text-lg font-black text-slate-900 truncate">{profile.fullName}</p>
-                        <p className="text-[10px] font-black text-primary uppercase tracking-widest">{isAdmin ? "System Administrator" : "Professor"}</p>
-                     </div>
-                  </div>
-                  <div className="pt-6 border-t space-y-3">
-                     <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground font-bold">University Email</span>
-                        <span className="font-black text-slate-700 truncate max-w-[150px]">{profile.email}</span>
-                     </div>
-                     <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground font-bold">Affiliation</span>
-                        <span className="font-black text-slate-700 truncate max-w-[150px]">{profile.collegeOffice || "Registry Pending"}</span>
-                     </div>
-                  </div>
-               </CardContent>
-            </Card>
-
-            {/* Quick Actions Grid */}
-            <div className="space-y-4">
+            <div className="space-y-4 pt-14">
               <Link href="/check-in/" className="block">
                 <Button className="w-full h-20 bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-xl flex items-center justify-start px-8 gap-5 group transition-all hover:scale-[1.02]">
-                  <div className="p-3 bg-white/10 rounded-xl group-hover:bg-white/20 transition-colors">
+                  <div className="p-3 bg-white/10 rounded-xl group-hover:bg-white/20">
                     <QrCode className="w-7 h-7" />
                   </div>
                   <div className="text-left">
                     <p className="text-lg font-black">Log Lab Usage</p>
-                    <p className="text-[10px] font-bold opacity-70">Start new room session</p>
+                    <p className="text-[10px] font-bold opacity-70">Occupy university facility</p>
                   </div>
                 </Button>
               </Link>
 
-              <Link href="/profile/" className="block">
-                <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-md flex items-center justify-start px-6 gap-4 group transition-all">
-                  <div className="p-2 bg-blue-50 text-primary rounded-lg group-hover:bg-blue-100 transition-colors">
-                    <Settings className="w-5 h-5" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-black">Faculty Profile</p>
-                    <p className="text-[9px] font-bold text-muted-foreground">Manage identity</p>
-                  </div>
-                </Button>
-              </Link>
+              <div className="grid grid-cols-1 gap-4">
+                <Link href="/profile/" className="block">
+                  <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4 group">
+                    <div className="p-2 bg-blue-50 text-primary rounded-lg"><Settings className="w-5 h-5" /></div>
+                    <p className="text-sm font-black">Faculty Settings</p>
+                  </Button>
+                </Link>
 
-              {isAdmin && (
-                <>
-                  <Link href="/history/" className="block">
-                    <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-md flex items-center justify-start px-6 gap-4 group transition-all">
-                      <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg group-hover:bg-indigo-100 transition-colors">
-                        <History className="w-5 h-5" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-black">Usage History</p>
-                        <p className="text-[9px] font-bold text-muted-foreground">View institutional logs</p>
-                      </div>
-                    </Button>
-                  </Link>
-                  <Link href="/admin/" className="block">
-                    <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-md flex items-center justify-start px-6 gap-4 group transition-all">
-                      <div className="p-2 bg-destructive/5 text-destructive rounded-lg group-hover:bg-destructive/10 transition-colors">
-                        <ShieldCheck className="w-5 h-5" />
-                      </div>
-                      <div className="text-left">
+                {isAdmin && (
+                  <>
+                    <Link href="/history/" className="block">
+                      <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4 group">
+                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><History className="w-5 h-5" /></div>
+                        <p className="text-sm font-black">Usage Registry</p>
+                      </Button>
+                    </Link>
+                    <Link href="/admin/" className="block">
+                      <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4 group">
+                        <div className="p-2 bg-destructive/5 text-destructive rounded-lg"><ShieldCheck className="w-5 h-5" /></div>
                         <p className="text-sm font-black">Admin Center</p>
-                        <p className="text-[9px] font-bold text-muted-foreground">Manage system telemetry</p>
-                      </div>
-                    </Button>
-                  </Link>
-                </>
-              )}
+                      </Button>
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
 
-            {/* Institutional Footnote */}
             <div className="p-8 bg-[#0F172A] rounded-3xl text-white space-y-4 shadow-2xl relative overflow-hidden">
                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" />
                <div className="flex items-center gap-2 text-cyan-400 font-black text-[10px] uppercase tracking-widest relative z-10">
-                  <Clock className="w-4 h-4" /> System Telemetry
+                  <Clock className="w-4 h-4" /> Policy Enforcement
                </div>
-               <p className="text-sm leading-relaxed text-slate-400 relative z-10 font-medium">
-                  Laboratory occupancy is tracked in real-time. Unauthorized sessions exceeding 3 hours will be flagged for review.
+               <p className="text-xs leading-relaxed text-slate-400 relative z-10 font-medium">
+                  Laboratory sessions are strictly capped at 3 hours. Sessions exceeding this limit are automatically finalized in the institutional registry.
                </p>
             </div>
           </div>
         </div>
       </main>
 
-      <footer className="py-8 text-center bg-white/50 backdrop-blur-sm border-t">
-        <p className="text-[10px] text-slate-400 uppercase font-black tracking-[0.4em]">
+      <footer className="py-8 text-center bg-white/50 backdrop-blur-sm border-t mt-auto w-full">
+        <p className="text-[9px] text-slate-400 uppercase font-black tracking-[0.5em]">
           New Era University • Real-Time Information Systems Division
         </p>
       </footer>
