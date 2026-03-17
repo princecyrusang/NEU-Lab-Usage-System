@@ -39,25 +39,14 @@ import {
 
 type FilterType = "weekly" | "monthly" | "yearly";
 
-// Institutional Registry Constants
-const INSTITUTIONAL_ROOMS = Array.from({ length: 10 }, (_, i) => `Computer Lab ${101 + i}`);
+// CICS Institutional Registry
+const CICS_LABS = Array.from({ length: 10 }, (_, i) => `Computer Lab ${101 + i}`);
 
-const INSTITUTIONAL_COLLEGES = [
-  "College of Arts and Sciences",
-  "College of Business Administration",
-  "College of Computer Studies",
-  "College of Education",
-  "College of Engineering and Architecture",
-  "College of Music",
-  "College of Nursing",
-  "College of Communication",
-  "College of Criminology",
-  "Center for Medical and Health Sciences",
-  "Graduate School",
-  "College of Law",
-  "Office of the Registrar",
-  "Office of Admissions",
-  "Other Administrative Offices",
+const CICS_PROGRAMS = [
+  { id: "BSIT", name: "BSIT" },
+  { id: "BSCS", name: "BSCS" },
+  { id: "BSIS", name: "BSIS" },
+  { id: "BSEMC", name: "BSEMC" },
 ];
 
 export default function LaboratoryReportsPage() {
@@ -83,11 +72,11 @@ export default function LaboratoryReportsPage() {
     } else if (timeFilter === "monthly") {
       start = startOfYear(now);
       end = endOfYear(now);
-      sub = `Monthly usage trend for year ${format(now, 'yyyy')}`;
+      sub = `CICS Monthly usage trend for year ${format(now, 'yyyy')}`;
     } else {
       start = startOfYear(subYears(now, 9));
       end = endOfYear(now);
-      sub = `Institutional growth (10-Year Overview)`;
+      sub = `CICS Institutional growth (10-Year Overview)`;
     }
     
     return { 
@@ -110,7 +99,7 @@ export default function LaboratoryReportsPage() {
   const { data: logs, isLoading: usageLoading } = useCollection(usageQuery);
 
   const stats = useMemo(() => {
-    if (!logs) return { roomData: [], collegeData: [], usageTrend: [] };
+    if (!logs) return { roomData: [], programData: [], usageTrend: [] };
 
     const getLogDate = (ts: any) => {
       if (!ts) return null;
@@ -118,18 +107,21 @@ export default function LaboratoryReportsPage() {
       return new Date(ts);
     };
 
-    // 1. Normalized Room Utilization
-    const roomMap = INSTITUTIONAL_ROOMS.map(name => ({ name, value: 0 }));
+    // 1. Normalized CICS Lab Utilization
+    const roomMap = CICS_LABS.map(name => ({ name, value: 0 }));
     logs.forEach(log => {
       const room = roomMap.find(r => r.name === log.roomNumber);
       if (room) room.value++;
     });
 
-    // 2. Normalized Engagement by Office
-    const collegeMap = INSTITUTIONAL_COLLEGES.map(name => ({ name, value: 0 }));
+    // 2. Normalized Engagement by CICS Program (Strict filtering)
+    const programMap = CICS_PROGRAMS.map(prog => ({ name: prog.name, value: 0 }));
     logs.forEach(log => {
-      const college = collegeMap.find(c => c.name === log.collegeOffice);
-      if (college) college.value++;
+      // Check if the log's collegeOffice field starts with or contains the program ID
+      const matchingProgram = programMap.find(p => 
+        log.collegeOffice?.toUpperCase().includes(p.name)
+      );
+      if (matchingProgram) matchingProgram.value++;
     });
 
     // 3. Temporal Usage Trends
@@ -178,7 +170,7 @@ export default function LaboratoryReportsPage() {
 
     return { 
       roomData: roomMap, 
-      collegeData: collegeMap, 
+      programData: programMap, 
       usageTrend: trend 
     };
   }, [logs, timeFilter, filterStartDate, filterEndDate]);
@@ -201,7 +193,7 @@ export default function LaboratoryReportsPage() {
             </div>
             <div className="space-y-2">
               <h3 className="text-2xl font-bold text-destructive">Restricted Access</h3>
-              <p className="text-muted-foreground">Institutional reports are only accessible to system administrators.</p>
+              <p className="text-muted-foreground">Institutional reports are only accessible to CICS administrators.</p>
             </div>
             <Link href="/dashboard/" className="block">
               <Button className="w-full py-6">Return to Dashboard</Button>
@@ -228,8 +220,8 @@ export default function LaboratoryReportsPage() {
   return (
     <div className="space-y-8 pb-10">
       <AdminPageHeader 
-        title="Institutional Reports" 
-        description="Data analysis of NEU LAB ROOM utilization and faculty engagement trends." 
+        title="CICS Institutional Reports" 
+        description="Data analysis of CICS Laboratory Command Center utilization and program engagement trends." 
       />
 
       <div className="grid gap-6">
@@ -310,13 +302,13 @@ export default function LaboratoryReportsPage() {
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Normalized Room Utilization Bar Chart */}
+          {/* CICS Lab Utilization Bar Chart */}
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <div className="h-1 bg-cyan-500" />
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2 font-black">
+              <CardTitle className="text-lg flex items-center gap-2 font-black text-slate-900">
                 <Monitor className="w-5 h-5 text-cyan-600" />
-                Room Utilization (Institutional Registry)
+                CICS Lab Utilization
               </CardTitle>
             </CardHeader>
             <CardContent className="h-[350px]">
@@ -347,29 +339,30 @@ export default function LaboratoryReportsPage() {
             </CardContent>
           </Card>
 
-          {/* Normalized Engagement by Office Bar Chart */}
+          {/* Engagement by CICS Program Bar Chart */}
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <div className="h-1 bg-indigo-500" />
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2 font-black">
+              <CardTitle className="text-lg flex items-center gap-2 font-black text-slate-900">
                 <Landmark className="w-5 h-5 text-indigo-600" />
-                Engagement by College/Office
+                Engagement by CICS Program
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-[450px]">
+            <CardContent className="h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart 
-                  data={stats.collegeData} 
+                  data={stats.programData} 
                   layout="vertical" 
-                  margin={{ top: 10, right: 30, left: 40, bottom: 10 }}
+                  margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+                  barSize={40}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                   <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#64748B" }} />
                   <YAxis 
                     dataKey="name" 
                     type="category" 
-                    width={140} 
-                    tick={{ fontSize: 9, fontWeight: 700, fill: "#1E293B" }} 
+                    width={80} 
+                    tick={{ fontSize: 12, fontWeight: 900, fill: "#1E293B" }} 
                     axisLine={false} 
                     tickLine={false} 
                   />
@@ -378,7 +371,7 @@ export default function LaboratoryReportsPage() {
                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                   />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                    {stats.collegeData.map((entry, index) => (
+                    {stats.programData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.value > 0 ? '#6366f1' : '#e2e8f0'} />
                     ))}
                   </Bar>

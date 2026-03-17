@@ -42,10 +42,10 @@ type FilterType = "weekly" | "monthly" | "yearly";
 const CICS_LABS = Array.from({ length: 10 }, (_, i) => `Computer Lab ${101 + i}`);
 
 const CICS_PROGRAMS_REGISTRY = [
-  { id: "BSIT", fullName: "BSIT (Bachelor of Science in Information Technology)" },
-  { id: "BSCS", fullName: "BSCS (Bachelor of Science in Computer Science)" },
-  { id: "BSIS", fullName: "BSIS (Bachelor of Science in Information System)" },
-  { id: "BSEMC", fullName: "BSEMC (Bachelor of Science in Entertainment and Multimedia Computing)" },
+  { id: "BSIT", name: "BSIT" },
+  { id: "BSCS", name: "BSCS" },
+  { id: "BSIS", name: "BSIS" },
+  { id: "BSEMC", name: "BSEMC" },
 ];
 
 export default function CICSReportsPage() {
@@ -115,14 +115,15 @@ export default function CICSReportsPage() {
 
     // 2. Normalized Engagement by CICS Program (BSIT, BSCS, BSIS, BSEMC)
     const programMap = CICS_PROGRAMS_REGISTRY.map(prog => ({ 
-      name: prog.id, 
-      fullName: prog.fullName,
+      name: prog.name, 
       value: 0 
     }));
 
     logs.forEach(log => {
-      const progMatch = programMap.find(p => p.fullName === log.collegeOffice);
-      if (progMatch) progMatch.value++;
+      const matchingProgram = programMap.find(p => 
+        log.collegeOffice?.toUpperCase().includes(p.name)
+      );
+      if (matchingProgram) matchingProgram.value++;
     });
 
     // 3. Temporal Usage Trends
@@ -354,7 +355,8 @@ export default function CICSReportsPage() {
                 <BarChart 
                   data={stats.programData} 
                   layout="vertical" 
-                  margin={{ top: 10, right: 30, left: 20, bottom: 10 }}
+                  margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+                  barSize={40}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                   <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#64748B" }} />
