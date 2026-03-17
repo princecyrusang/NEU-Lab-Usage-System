@@ -72,7 +72,6 @@ export default function LaboratoryDashboard() {
       href: "/check-in/",
       color: "bg-blue-600",
       borderColor: "border-blue-200",
-      adminOnly: false,
     },
     {
       title: "Faculty Profile",
@@ -81,20 +80,8 @@ export default function LaboratoryDashboard() {
       href: "/profile/",
       color: "bg-slate-600",
       borderColor: "border-slate-200",
-      adminOnly: false,
-    },
-    {
-      title: "Usage History",
-      description: "Review institutional laboratory usage logs.",
-      icon: History,
-      href: "/history/",
-      color: "bg-indigo-600",
-      borderColor: "border-indigo-200",
-      adminOnly: true,
-    },
+    }
   ];
-
-  const quickActions = ACTIONS.filter(action => !action.adminOnly || isAdmin);
 
   return (
     <div className="min-h-screen bg-[#EEF1F6] flex flex-col">
@@ -139,8 +126,9 @@ export default function LaboratoryDashboard() {
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {quickActions.map((action) => (
-              <Link key={action.title} href={action.href} className="group">
+            {/* Top Row: Common Actions */}
+            {ACTIONS.map((action) => (
+              <Link key={action.title} href={action.href} className="group h-full">
                 <Card className={`h-full transition-all hover:shadow-lg border-l-4 ${action.borderColor} active:scale-[0.98]`}>
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
@@ -156,23 +144,39 @@ export default function LaboratoryDashboard() {
               </Link>
             ))}
 
+            {/* Bottom Row: Admin-Specific Actions */}
             {isAdmin && (
-              <Link href="/admin/" className="group md:col-span-2">
-                <Card className="transition-all hover:shadow-lg border-l-4 border-red-200 active:scale-[0.98] bg-red-50/50">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-6">
-                      <div className="p-4 rounded-xl bg-red-600 text-white shadow-md group-hover:scale-110 transition-transform">
-                        <ShieldCheck className="w-8 h-8" />
+              <>
+                <Link href="/history/" className="group h-full">
+                  <Card className="h-full transition-all hover:shadow-lg border-l-4 border-indigo-200 active:scale-[0.98]">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="p-3 rounded-xl bg-indigo-600 text-white mb-4 shadow-md group-hover:scale-110 transition-transform">
+                          <History className="w-6 h-6" />
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                      <div className="flex-1">
-                        <h3 className="text-xl font-bold text-red-700">Admin Control Center</h3>
-                        <p className="text-sm text-muted-foreground">Manage users, access logs, and institutional reports.</p>
+                      <h3 className="text-lg font-bold mb-1">Usage History</h3>
+                      <p className="text-sm text-muted-foreground">Review institutional laboratory usage logs.</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+
+                <Link href="/admin/" className="group h-full">
+                  <Card className="h-full transition-all hover:shadow-lg border-l-4 border-destructive/30 active:scale-[0.98] bg-destructive/5">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="p-3 rounded-xl bg-destructive text-white mb-4 shadow-md group-hover:scale-110 transition-transform">
+                          <ShieldCheck className="w-6 h-6" />
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-destructive/50 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
-                      <ChevronRight className="w-6 h-6 text-red-300" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                      <h3 className="text-lg font-bold text-destructive mb-1">Admin Center</h3>
+                      <p className="text-sm text-muted-foreground">Manage users and view institutional data reports.</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              </>
             )}
           </div>
         </div>
