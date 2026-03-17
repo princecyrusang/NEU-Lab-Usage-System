@@ -255,12 +255,11 @@ export default function LaboratoryDashboard() {
                 <span className="text-[10px] font-black uppercase tracking-widest">CICS Systems Online</span>
              </div>
              <Button 
-                variant="ghost" 
                 onClick={handleLogoutWithConfirm} 
-                className="text-white hover:bg-white/10 h-10 w-10 p-0"
-                title="Sign Out"
+                className="bg-white text-primary hover:bg-red-50 hover:text-red-600 transition-colors font-bold flex items-center gap-2 px-4 h-10 rounded-md shadow-sm"
              >
-               <LogOut className="w-6 h-6" />
+               <LogOut className="w-4 h-4" />
+               <span className="text-sm">Sign Out</span>
              </Button>
           </div>
         </div>
