@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
-import { collection, query, where, orderBy, Timestamp } from "firebase/firestore";
+import { collection, query, where, orderBy } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Bar, 
@@ -13,7 +13,6 @@ import {
   Area, 
   AreaChart, 
   ResponsiveContainer, 
-  Legend, 
   Tooltip,
   CartesianGrid 
 } from "recharts";
@@ -22,7 +21,16 @@ import { Loader2, ShieldAlert, TrendingUp, Landmark, Monitor } from "lucide-reac
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { subDays, subMonths, startOfDay, format, isAfter, eachDayOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, isSameDay, isSameMonth } from "date-fns";
+import { 
+  subDays, 
+  subMonths, 
+  format, 
+  eachDayOfInterval, 
+  eachMonthOfInterval, 
+  isSameDay, 
+  isSameMonth,
+  startOfDay
+} from "date-fns";
 
 type FilterType = "weekly" | "monthly" | "yearly";
 
@@ -38,18 +46,21 @@ export default function LaboratoryReportsPage() {
   
   const isAdmin = profile?.role === "Admin";
 
-  const filterStartDate = useMemo(() => {
+  const { filterStartDate, filterEndDate } = useMemo(() => {
     const now = new Date();
-    if (timeFilter === "weekly") return subDays(now, 7);
-    if (timeFilter === "monthly") return subMonths(now, 1);
-    if (timeFilter === "yearly") return subMonths(now, 12);
-    return subDays(now, 7);
+    let start;
+    if (timeFilter === "weekly") start = subDays(now, 6);
+    else if (timeFilter === "monthly") start = subDays(now, 29);
+    else start = subMonths(now, 11);
+    
+    return { 
+      filterStartDate: startOfDay(start), 
+      filterEndDate: now 
+    };
   }, [timeFilter]);
 
   const usageQuery = useMemoFirebase(() => {
     if (!isAdmin || !firestore) return null;
-    // We fetch logs since the filter start date for the trend chart
-    // Note: In a real production app with massive data, you'd strictly filter here.
     return query(
       collection(firestore, "lab_usage"),
       where("timestamp", ">=", filterStartDate.toISOString()),
@@ -68,7 +79,7 @@ export default function LaboratoryReportsPage() {
       return new Date(ts);
     };
 
-    // Group by Room (Institutional scale)
+    // Group by Room
     const rooms = logs.reduce((acc: any[], log) => {
       const room = log.roomNumber || "Unknown Room";
       const existing = acc.find(a => a.name === room);
@@ -78,7 +89,7 @@ export default function LaboratoryReportsPage() {
         acc.push({ name: room, value: 1 });
       }
       return acc;
-    }, []).sort((a, b) => b.value - a.value);
+    }, []).sort((a, b) => b.value - a.value).slice(0, 10);
 
     // Group by College/Department
     const colleges = logs.reduce((acc: any[], log) => {
@@ -90,46 +101,54 @@ export default function LaboratoryReportsPage() {
         acc.push({ name: office, value: 1 });
       }
       return acc;
-    }, []);
+    }, []).sort((a, b) => b.value - a.value);
 
-    // Usage Trend Logic based on filter
-    const now = new Date();
-    let trend: { date: string, count: number }[] = [];
+    // Usage Trend Logic with zero-filling
+    let trend: { date: string, count: number, fullDate: string }[] = [];
 
     if (timeFilter === "weekly") {
-      const days = eachDayOfInterval({ start: filterStartDate, end: now });
+      const days = eachDayOfInterval({ start: filterStartDate, end: filterEndDate });
       trend = days.map(day => {
         const count = logs.filter(log => {
           const d = getLogDate(log.timestamp);
           return d && isSameDay(d, day);
         }).length;
-        return { date: format(day, 'EEE'), count };
+        return { 
+          date: format(day, 'MMM dd'), 
+          count,
+          fullDate: format(day, 'PPPP')
+        };
       });
     } else if (timeFilter === "monthly") {
-      // Group by Week within the month
-      const days = eachDayOfInterval({ start: filterStartDate, end: now });
-      // To keep it simple but "grouped by week" as requested, we'll use 4-5 buckets
-      const weekBuckets: Record<string, number> = {};
-      logs.forEach(log => {
-        const d = getLogDate(log.timestamp);
-        if (!d) return;
-        const weekStart = format(startOfWeek(d), 'MMM d');
-        weekBuckets[weekStart] = (weekBuckets[weekStart] || 0) + 1;
+      const days = eachDayOfInterval({ start: filterStartDate, end: filterEndDate });
+      trend = days.map(day => {
+        const count = logs.filter(log => {
+          const d = getLogDate(log.timestamp);
+          return d && isSameDay(d, day);
+        }).length;
+        return { 
+          date: format(day, 'MMM dd'), 
+          count,
+          fullDate: format(day, 'PPPP')
+        };
       });
-      trend = Object.entries(weekBuckets).map(([date, count]) => ({ date, count }));
     } else if (timeFilter === "yearly") {
-      const months = eachMonthOfInterval({ start: filterStartDate, end: now });
+      const months = eachMonthOfInterval({ start: filterStartDate, end: filterEndDate });
       trend = months.map(month => {
         const count = logs.filter(log => {
           const d = getLogDate(log.timestamp);
           return d && isSameMonth(d, month);
         }).length;
-        return { date: format(month, 'MMM'), count };
+        return { 
+          date: format(month, 'MMM'), 
+          count,
+          fullDate: format(month, 'MMMM yyyy')
+        };
       });
     }
 
     return { roomData: rooms, collegeData: colleges, usageTrend: trend };
-  }, [logs, timeFilter, filterStartDate]);
+  }, [logs, timeFilter, filterStartDate, filterEndDate]);
 
   if (authLoading || !isMounted) {
     return (
@@ -166,7 +185,7 @@ export default function LaboratoryReportsPage() {
       size="sm"
       onClick={() => setTimeFilter(type)}
       className={`text-xs font-bold uppercase tracking-wider h-8 ${
-        timeFilter === type ? "bg-primary text-white" : "text-muted-foreground"
+        timeFilter === type ? "bg-primary text-white" : "text-muted-foreground hover:bg-primary/10"
       }`}
     >
       {label}
@@ -183,57 +202,74 @@ export default function LaboratoryReportsPage() {
       <div className="grid gap-6">
         {/* Main Trend Chart */}
         <Card className="border-none shadow-sm overflow-hidden bg-white">
-          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2">
             <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
+              <CardTitle className="text-xl flex items-center gap-2 font-black text-slate-900">
+                <TrendingUp className="w-6 h-6 text-primary" />
                 Usage Frequency Trends
               </CardTitle>
-              <p className="text-xs text-muted-foreground font-medium">Session volume trends across the university</p>
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">
+                Data from {format(filterStartDate, 'MMM dd')} to {format(filterEndDate, 'MMM dd, yyyy')}
+              </p>
             </div>
-            <div className="flex bg-muted/50 p-1 rounded-lg gap-1 self-end sm:self-auto">
+            <div className="flex bg-muted/50 p-1 rounded-lg gap-1 self-end sm:self-auto border">
               <FilterButton type="weekly" label="Weekly" />
               <FilterButton type="monthly" label="Monthly" />
               <FilterButton type="yearly" label="Yearly" />
             </div>
           </CardHeader>
-          <CardContent className="h-[400px] pt-4">
+          <CardContent className="h-[450px] pt-6">
             {usageLoading ? (
               <div className="h-full flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-primary animate-spin" />
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={stats.usageTrend}>
+                <AreaChart data={stats.usageTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0C46A3" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#0C46A3" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#0C46A3" stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor="#0C46A3" stopOpacity={0.01}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
                     dataKey="date" 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fontSize: 10, fill: "#64748B", fontWeight: 600 }}
+                    tick={{ fontSize: 10, fill: "#64748B", fontWeight: 700 }}
+                    interval={timeFilter === 'monthly' ? 4 : 0}
                   />
                   <YAxis 
                     axisLine={false} 
                     tickLine={false} 
-                    tick={{ fontSize: 10, fill: "#64748B", fontWeight: 600 }}
+                    tick={{ fontSize: 10, fill: "#64748B", fontWeight: 700 }}
                   />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                    itemStyle={{ color: '#0C46A3', fontWeight: 'bold' }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white p-4 shadow-2xl rounded-xl border border-slate-100">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
+                              {payload[0].payload.fullDate}
+                            </p>
+                            <p className="text-lg font-black text-primary">
+                              {payload[0].value} Sessions
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
                   />
                   <Area 
                     type="monotone" 
                     dataKey="count" 
                     stroke="#0C46A3" 
-                    strokeWidth={3}
+                    strokeWidth={4}
                     fillOpacity={1} 
                     fill="url(#colorUsage)" 
+                    animationDuration={1500}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -243,40 +279,61 @@ export default function LaboratoryReportsPage() {
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Room Distribution */}
-          <Card className="border-none shadow-sm bg-white">
+          <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <div className="h-1 bg-cyan-500" />
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle className="text-lg flex items-center gap-2 font-black">
                 <Monitor className="w-5 h-5 text-cyan-600" />
-                Room Utilization
+                Top Room Utilization
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-[300px]">
+            <CardContent className="h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.roomData}>
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#0C46A3" radius={[4, 4, 0, 0]} />
+                <BarChart data={stats.roomData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 9, fontWeight: 600 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                  <Tooltip 
+                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  />
+                  <Bar dataKey="value" fill="#0C46A3" radius={[6, 6, 0, 0]} barSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
           {/* Engagement by Office */}
-          <Card className="border-none shadow-sm bg-white">
+          <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <div className="h-1 bg-indigo-500" />
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
+              <CardTitle className="text-lg flex items-center gap-2 font-black">
                 <Landmark className="w-5 h-5 text-indigo-600" />
-                Office Engagement
+                Engagement by Office
               </CardTitle>
             </CardHeader>
-            <CardContent className="h-[300px]">
+            <CardContent className="h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.collegeData} layout="vertical">
-                  <XAxis type="number" axisLine={false} tickLine={false} />
-                  <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#47C1EB" radius={[0, 4, 4, 0]} />
+                <BarChart data={stats.collegeData} layout="vertical" margin={{ top: 10, right: 30, left: 40, bottom: 10 }}>
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={120} 
+                    tick={{ fontSize: 9, fontWeight: 600 }} 
+                    axisLine={false} 
+                    tickLine={false} 
+                  />
+                  <Tooltip 
+                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  />
+                  <Bar dataKey="value" fill="#47C1EB" radius={[0, 6, 6, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
