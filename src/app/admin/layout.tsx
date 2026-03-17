@@ -3,7 +3,7 @@
 
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
-import { DoorOpen, LayoutDashboard, Users, BarChart3, LogOut, Menu, Loader2 } from "lucide-react";
+import { DoorOpen, LayoutDashboard, Users, BarChart3, Menu, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -16,7 +16,7 @@ const NAV_ITEMS = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { profile, loading, logout } = useAuth();
+  const { profile, loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
@@ -31,12 +31,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.push("/dashboard");
     }
   }, [isMounted, loading, profile, router]);
-
-  const handleLogout = () => {
-    if (window.confirm("Are you sure you want to sign out?")) {
-      logout();
-    }
-  };
 
   if (loading || !isMounted) {
     return (
@@ -68,17 +62,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </nav>
   );
 
-  const LogoutButton = () => (
-    <Button 
-      variant="outline" 
-      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 transition-colors flex items-center gap-3 py-6 px-4" 
-      onClick={handleLogout}
-    >
-      <LogOut className="w-5 h-5" />
-      <span className="font-bold">Sign Out</span>
-    </Button>
-  );
-
   return (
     <div className="min-h-screen bg-[#EEF1F6] flex flex-col md:flex-row">
       {/* Desktop Sidebar */}
@@ -92,12 +75,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <NavLinks />
         </div>
 
-        <div className="pt-6 border-t space-y-4">
+        <div className="pt-6 border-t">
           <div className="px-2">
             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Authenticated as</p>
-            <p className="text-sm font-bold truncate">{profile.fullName}</p>
+            <p className="text-sm font-bold truncate text-primary">{profile.fullName}</p>
           </div>
-          <LogoutButton />
         </div>
       </aside>
 
@@ -122,7 +104,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <NavLinks />
             </div>
             <div className="pt-6 border-t mt-auto">
-               <LogoutButton />
+               <div className="px-2 pb-4">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Authenticated as</p>
+                <p className="text-sm font-bold truncate text-primary">{profile.fullName}</p>
+              </div>
             </div>
           </SheetContent>
         </Sheet>
