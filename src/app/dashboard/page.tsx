@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -5,12 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { 
   LogOut, 
-  User, 
-  History, 
   Settings, 
   ShieldCheck,
-  Building,
-  Mail,
+  History,
   ChevronRight,
   QrCode,
   Loader2
@@ -22,22 +20,27 @@ export default function LaboratoryDashboard() {
   const { profile, logout, loading } = useAuth();
   const [retryCount, setRetryCount] = useState(0);
 
-  // Resilience: If loading is done but profile is missing, retry after 1s
+  // Resilience: If profile is missing after initial load, retry check
   useEffect(() => {
-    if (!loading && !profile && retryCount < 3) {
-      const timer = setTimeout(() => setRetryCount(prev => prev + 1), 1000);
+    if (!loading && !profile && retryCount < 5) {
+      const timer = setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+      }, 1500); // Wait 1.5s then retry
       return () => clearTimeout(timer);
     }
   }, [loading, profile, retryCount]);
 
-  if (loading || (!profile && retryCount < 3)) {
+  if (loading || (!profile && retryCount < 5)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 text-primary animate-spin" />
-          <p className="text-sm font-medium text-muted-foreground animate-pulse">
-            {loading ? "Verifying Credentials..." : "Setting up your profile..."}
-          </p>
+        <div className="flex flex-col items-center gap-4 text-center p-6">
+          <Loader2 className="w-12 h-12 text-primary animate-spin" />
+          <div className="space-y-2">
+            <p className="text-lg font-bold text-primary">NEU LAB ROOM</p>
+            <p className="text-sm text-muted-foreground animate-pulse">
+              {retryCount > 0 ? "Finalizing institutional profile..." : "Verifying credentials..."}
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -47,10 +50,13 @@ export default function LaboratoryDashboard() {
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4 text-center">
-        <div className="space-y-4 max-w-sm">
+        <div className="space-y-6 max-w-sm">
+          <div className="text-6xl">🚪</div>
           <h2 className="text-2xl font-bold text-primary">Setup in Progress</h2>
-          <p className="text-muted-foreground">We're finalizing your account details. Please wait a moment or try refreshing.</p>
-          <Button onClick={() => window.location.reload()} className="w-full">Refresh Page</Button>
+          <p className="text-muted-foreground">We are finalizing your account details. This usually takes a moment.</p>
+          <Button onClick={() => window.location.reload()} className="w-full py-6 text-lg font-bold">
+            Refresh Dashboard
+          </Button>
         </div>
       </div>
     );
@@ -58,53 +64,50 @@ export default function LaboratoryDashboard() {
 
   const isAdmin = profile.role === "Admin";
 
-  const ALL_ACTIONS = [
+  const ACTIONS = [
     {
       title: "Log Usage",
-      description: "Scan your ID to record room entry and start session.",
+      description: "Scan your ID to record entry and start session.",
       icon: QrCode,
       href: "/check-in/",
       color: "bg-blue-600",
-      textColor: "text-blue-600",
       borderColor: "border-blue-200",
       adminOnly: false,
     },
     {
       title: "Faculty Profile",
-      description: "Manage your institutional and college details.",
+      description: "Manage your university affiliation details.",
       icon: Settings,
       href: "/profile/",
       color: "bg-slate-600",
-      textColor: "text-slate-600",
       borderColor: "border-slate-200",
       adminOnly: false,
     },
     {
       title: "Usage History",
-      description: "Review institutional laboratory usage history.",
+      description: "Review institutional laboratory usage logs.",
       icon: History,
       href: "/history/",
       color: "bg-indigo-600",
-      textColor: "text-indigo-600",
       borderColor: "border-indigo-200",
       adminOnly: true,
     },
   ];
 
-  const quickActions = ALL_ACTIONS.filter(action => !action.adminOnly || isAdmin);
+  const quickActions = ACTIONS.filter(action => !action.adminOnly || isAdmin);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-[#EEF1F6] flex flex-col">
       <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🚪</span>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🚪</span>
             <h1 className="text-xl font-bold tracking-tight">NEU LAB ROOM</h1>
           </div>
           <Button 
             variant="ghost" 
             onClick={logout}
-            className="text-white hover:bg-white/20 hover:text-white"
+            className="text-white hover:bg-white/20"
           >
             <LogOut className="w-4 h-4 mr-2" />
             Sign Out
@@ -114,32 +117,31 @@ export default function LaboratoryDashboard() {
 
       <main className="container mx-auto px-4 py-8 max-w-4xl flex-1">
         <div className="space-y-8">
-          <div>
-            <h2 className="text-3xl font-bold text-primary">Welcome, {profile.fullName.split(' ')[0]}</h2>
-            <p className="text-muted-foreground">Manage laboratory room sessions and usage logs.</p>
+          <div className="bg-white p-8 rounded-2xl shadow-sm border-l-8 border-primary">
+            <h2 className="text-3xl font-bold text-primary">Welcome, {profile.fullName.split(' ')[0]}!</h2>
+            <p className="text-muted-foreground mt-1">Institutional monitoring system for laboratory facilities.</p>
           </div>
 
-          <Card className="border-none shadow-md overflow-hidden">
+          <Card className="border-none shadow-md">
             <CardHeader className="bg-accent/10 border-b">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-primary rounded-full flex items-center justify-center text-white shadow-inner">
-                  <User className="w-8 h-8" />
+                <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xl">
+                  {profile.fullName?.[0] || "U"}
                 </div>
-                <div className="space-y-1">
+                <div>
                   <CardTitle className="text-xl">{profile.fullName}</CardTitle>
-                  <CardDescription className="flex flex-col gap-0.5">
-                    <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {profile.email}</span>
-                    <span className="flex items-center gap-1.5"><Building className="w-3.5 h-3.5" /> {profile.collegeOffice}</span>
+                  <CardDescription className="font-medium text-primary">
+                    {profile.collegeOffice} • {profile.role}
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {quickActions.map((action) => (
               <Link key={action.title} href={action.href} className="group">
-                <Card className={`h-full transition-all hover:shadow-lg border-l-4 ${action.borderColor} active:scale-95`}>
+                <Card className={`h-full transition-all hover:shadow-lg border-l-4 ${action.borderColor} active:scale-[0.98]`}>
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div className={`p-3 rounded-xl ${action.color} text-white mb-4 shadow-md group-hover:scale-110 transition-transform`}>
@@ -155,17 +157,19 @@ export default function LaboratoryDashboard() {
             ))}
 
             {isAdmin && (
-              <Link href="/admin/" className="group lg:col-span-1">
-                <Card className="h-full transition-all hover:shadow-lg border-l-4 border-red-200 active:scale-95 bg-red-50/30">
+              <Link href="/admin/" className="group md:col-span-2">
+                <Card className="transition-all hover:shadow-lg border-l-4 border-red-200 active:scale-[0.98] bg-red-50/50">
                   <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="p-3 rounded-xl bg-red-600 text-white mb-4 shadow-md group-hover:scale-110 transition-transform">
-                        <ShieldCheck className="w-6 h-6" />
+                    <div className="flex items-center gap-6">
+                      <div className="p-4 rounded-xl bg-red-600 text-white shadow-md group-hover:scale-110 transition-transform">
+                        <ShieldCheck className="w-8 h-8" />
                       </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold text-red-700">Admin Control Center</h3>
+                        <p className="text-sm text-muted-foreground">Manage users, access logs, and institutional reports.</p>
+                      </div>
+                      <ChevronRight className="w-6 h-6 text-red-300" />
                     </div>
-                    <h3 className="text-lg font-bold mb-1">Admin Dashboard</h3>
-                    <p className="text-sm text-muted-foreground">Institutional Usage Reports and management.</p>
                   </CardContent>
                 </Card>
               </Link>

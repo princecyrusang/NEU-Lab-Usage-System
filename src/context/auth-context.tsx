@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -50,23 +51,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(data);
         return data;
       } else {
-        // Create new profile with default role 'Professor'
+        // HARD FIX: Create new profile immediately and await the write
         const newProfile: UserProfile = {
           id: firebaseUser.uid,
-          email: firebaseUser.email || "",
-          fullName: firebaseUser.displayName || "",
+          email: firebaseUser.email?.toLowerCase() || "",
+          fullName: firebaseUser.displayName || "Institutional Member",
           role: "Professor",
-          collegeOffice: "",
+          collegeOffice: "College of Computer Studies", // Default fallback
           isSetupComplete: false,
           isBlocked: false,
         };
-        // Explicitly await the write before continuing to avoid dashboard race conditions
-        await setDoc(docRef, newProfile);
+        
+        // Ensure Firestore write finishes before proceeding
+        await setDoc(docRef, newProfile, { merge: true });
         setProfile(newProfile);
         return newProfile;
       }
     } catch (error) {
-      console.error("Profile sync error:", error);
+      console.error("Critical Profile Sync Error:", error);
       return null;
     }
   };
@@ -83,14 +85,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setProfile(null);
           toast({
             variant: "destructive",
-            title: "Access Restricted",
-            description: "Only verified @neu.edu.ph institutional accounts are allowed.",
+            title: "Institutional Only",
+            description: "Please sign in with your @neu.edu.ph account.",
           });
           setLoading(false);
           return;
         }
         
-        // Wait for sync to finish before letting the app proceed
+        // Robustly wait for profile to be ready in Firestore
         await syncProfile(firebaseUser);
         setUser(firebaseUser);
       } else {
@@ -101,14 +103,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [firebaseAuth, toast]);
+  }, [firebaseAuth, firestore, toast]);
 
-  // Client-Side Only Redirection Logic for Static Export stability
+  // Use direct window location for deployment stability
   useEffect(() => {
     if (loading) return;
 
     const cleanPath = pathname?.replace(/\/$/, '') || "";
-    const isLoginPage = cleanPath === "/login" || cleanPath === "";
+    const isLoginPage = cleanPath === "/login" || cleanPath === "" || cleanPath === "/index.html";
 
     if (user && profile) {
       if (profile.isBlocked && cleanPath !== "/access-denied") {

@@ -12,7 +12,7 @@ service cloud.firestore {
     function isInstitutionalEmail() {
       return isSignedIn() && 
              request.auth.token.email != null && 
-             request.auth.token.email.endsWith('@neu.edu.ph');
+             request.auth.token.email.toLowerCase().endsWith('@neu.edu.ph');
     }
 
     function isOwner(userId) {
@@ -29,20 +29,13 @@ service cloud.firestore {
       return isSignedIn() && data != null && data.role == 'Admin';
     }
 
-    function isNotBlocked() {
-      let data = getUserData(request.auth.uid);
-      return isSignedIn() && (data == null || data.isBlocked == false);
-    }
-
     // --- Collection Rules ---
 
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-      allow create: if isOwner(userId) && isInstitutionalEmail();
-      allow update: if (isOwner(userId) && isNotBlocked() && 
-                      request.resource.data.role == resource.data.role && 
-                      request.resource.data.isBlocked == resource.data.isBlocked) || isAdmin();
+      // Allow creation and update for institutional users on their own doc
+      allow create, update: if (isOwner(userId) && isInstitutionalEmail()) || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -52,8 +45,7 @@ service cloud.firestore {
         isAdmin() || 
         (resource.data.userId == request.auth.uid)
       );
-      allow create: if isSignedIn() && isNotBlocked() && 
-                    isInstitutionalEmail() &&
+      allow create: if isSignedIn() && isInstitutionalEmail() &&
                     request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
     }
