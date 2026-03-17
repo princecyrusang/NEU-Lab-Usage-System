@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -31,6 +32,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [isMounted, loading, profile, router]);
 
+  const handleLogout = () => {
+    if (window.confirm("Are you sure you want to sign out?")) {
+      logout();
+    }
+  };
+
   if (loading || !isMounted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#EEF1F6]">
@@ -61,12 +68,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </nav>
   );
 
+  const LogoutButton = () => (
+    <Button 
+      variant="outline" 
+      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 transition-colors flex items-center gap-3 py-6 px-4" 
+      onClick={handleLogout}
+    >
+      <LogOut className="w-5 h-5" />
+      <span className="font-bold">Sign Out</span>
+    </Button>
+  );
+
   return (
     <div className="min-h-screen bg-[#EEF1F6] flex flex-col md:flex-row">
+      {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 bg-white border-r flex-col p-6 shadow-sm sticky top-0 h-screen">
         <div className="flex items-center gap-3 text-primary mb-10 px-2">
           <DoorOpen className="w-8 h-8" />
-          <span className="font-bold text-xl tracking-tight leading-tight">NEU LAB ROOM Admin</span>
+          <span className="font-bold text-xl tracking-tight leading-tight">CICS ADMIN</span>
         </div>
         
         <div className="flex-1">
@@ -75,20 +94,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <div className="pt-6 border-t space-y-4">
           <div className="px-2">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Authenticated as</p>
-            <p className="text-sm font-semibold truncate">{profile.fullName}</p>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider mb-1">Authenticated as</p>
+            <p className="text-sm font-bold truncate">{profile.fullName}</p>
           </div>
-          <Button variant="outline" className="w-full justify-start text-destructive hover:bg-destructive/10 border-destructive/30" onClick={logout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <LogoutButton />
         </div>
       </aside>
 
+      {/* Mobile Header */}
       <header className="md:hidden bg-primary text-white p-4 flex justify-between items-center shadow-lg">
         <div className="flex items-center gap-2">
           <DoorOpen className="w-6 h-6" />
-          <span className="font-bold">NEU LAB ROOM</span>
+          <span className="font-bold">CICS ADMIN</span>
         </div>
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
@@ -96,12 +113,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Menu className="w-6 h-6" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64">
+          <SheetContent side="left" className="w-64 flex flex-col p-6">
             <div className="flex items-center gap-3 text-primary mb-10 mt-6 px-2">
               <DoorOpen className="w-8 h-8" />
-              <span className="font-bold text-xl leading-tight">NEU LAB ROOM Admin</span>
+              <span className="font-bold text-xl leading-tight">CICS ADMIN</span>
             </div>
-            <NavLinks />
+            <div className="flex-1">
+              <NavLinks />
+            </div>
+            <div className="pt-6 border-t mt-auto">
+               <LogoutButton />
+            </div>
           </SheetContent>
         </Sheet>
       </header>

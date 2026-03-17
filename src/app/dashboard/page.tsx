@@ -128,6 +128,12 @@ export default function LaboratoryDashboard() {
     };
   }, [activeSessions, allHistory, allUsers]);
 
+  const handleLogoutWithConfirm = () => {
+    if (window.confirm("Are you sure you want to sign out from the CICS Command Center?")) {
+      logout();
+    }
+  };
+
   const handleStopSession = useCallback(async (session: any, isAuto = false) => {
     if (!firestore || isStopping === session.id) return;
     setIsStopping(session.id);
@@ -244,11 +250,16 @@ export default function LaboratoryDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-6">
-             <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/10">
+             <div className="hidden sm:flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/10">
                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                 <span className="text-[10px] font-black uppercase tracking-widest">CICS Systems Online</span>
              </div>
-             <Button variant="ghost" onClick={logout} className="text-white hover:bg-white/10 h-10 w-10 p-0">
+             <Button 
+                variant="ghost" 
+                onClick={handleLogoutWithConfirm} 
+                className="text-white hover:bg-white/10 h-10 w-10 p-0"
+                title="Sign Out"
+             >
                <LogOut className="w-6 h-6" />
              </Button>
           </div>
