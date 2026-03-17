@@ -159,17 +159,20 @@ export default function LaboratoryDashboard() {
       const diffMins = Math.floor((diffMs % 3600000) / 60000);
       const durationStr = isAuto ? "3h 0m (Auto-Closed)" : `${diffHrs}h ${diffMins}m`;
 
-      // 1. Move to permanent history
-      await addDoc(collection(firestore, "lab_usage"), {
-        ...session,
-        endTime: now.toISOString(),
-        durationMinutes: Math.min(Math.floor(diffMs / 60000), 180),
-        totalDuration: durationStr,
-        timestamp: now.toISOString(),
-        isAutoClosed: isAuto
-      });
+      // 1. Update the EXISTING history record (Targeting logId created at start)
+      if (session.logId) {
+        const logRef = doc(firestore, "lab_usage", session.logId);
+        await updateDoc(logRef, {
+          endTime: now.toISOString(),
+          durationMinutes: Math.min(Math.floor(diffMs / 60000), 180),
+          totalDuration: durationStr,
+          status: "Completed",
+          isAutoClosed: isAuto
+        });
+      }
 
-      // 2. Clear active status
+      // 2. Clear active status (Delete the session lock)
+      // session.id corresponds to the roomId because it's the document name
       await deleteDoc(doc(firestore, "active_sessions", session.id));
 
       toast({
@@ -181,6 +184,11 @@ export default function LaboratoryDashboard() {
       });
     } catch (error: any) {
       console.error("Stop session error:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not sync session status to institutional records."
+      });
     } finally {
       setIsStopping(null);
     }
@@ -321,7 +329,7 @@ export default function LaboratoryDashboard() {
         {/* Main Grid Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
           
-          {/* Laboratory Availability Map (Fills Space) */}
+          {/* Laboratory Availability Map */}
           <div className="lg:col-span-3 space-y-6">
             <div className="flex items-center justify-between">
                <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">

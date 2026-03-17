@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { DoorOpen, User, Building, Mail, ArrowLeft, QrCode, CheckCircle2, ShieldAlert, Loader2 } from "lucide-react";
-import { collection, doc, setDoc } from "firebase/firestore";
+import { collection, doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
@@ -83,6 +83,24 @@ export default function LaboratoryUsagePage() {
     setIsSubmitting(true);
     
     try {
+      const startTime = new Date().toISOString();
+      const logRef = doc(collection(firestore, "lab_usage"));
+      
+      // 1. Create history entry at start (status: Active)
+      // This allows the system to track the unique session ID immediately
+      await setDoc(logRef, {
+        userId: user.uid,
+        fullName: profile.fullName || user.displayName || "Institutional Member",
+        email: user.email,
+        collegeOffice: profile.collegeOffice || "Registry Pending",
+        roomNumber: room,
+        startTime: startTime,
+        endTime: "", // Required placeholder until session ends
+        status: "Active",
+        timestamp: startTime, // String format for reports
+      });
+
+      // 2. Create active session lock in Firestore
       const activeSessionRef = doc(firestore, "active_sessions", room);
       await setDoc(activeSessionRef, {
         roomId: room,
@@ -90,7 +108,8 @@ export default function LaboratoryUsagePage() {
         fullName: profile.fullName || user.displayName || "Institutional Member",
         email: user.email,
         collegeOffice: profile.collegeOffice || "Registry Pending",
-        startTime: new Date().toISOString(),
+        startTime: startTime,
+        logId: logRef.id, // Store the pointer to the history record
       });
 
       router.push(`/confirmation?room=${encodeURIComponent(room)}`);

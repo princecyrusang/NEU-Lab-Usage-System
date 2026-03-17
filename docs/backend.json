@@ -31,7 +31,11 @@
         "roomNumber": { "type": "string" },
         "startTime": { "type": "string", "format": "date-time" },
         "endTime": { "type": "string", "format": "date-time" },
-        "durationMinutes": { "type": "number" }
+        "durationMinutes": { "type": "number" },
+        "totalDuration": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Completed"] },
+        "isAutoClosed": { "type": "boolean" },
+        "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "fullName", "email", "collegeOffice", "roomNumber", "startTime", "endTime"]
     },
@@ -46,9 +50,10 @@
         "fullName": { "type": "string" },
         "email": { "type": "string" },
         "collegeOffice": { "type": "string" },
-        "startTime": { "type": "string", "format": "date-time" }
+        "startTime": { "type": "string", "format": "date-time" },
+        "logId": { "type": "string", "description": "The ID of the corresponding record in lab_usage." }
       },
-      "required": ["roomId", "userId", "fullName", "startTime"]
+      "required": ["roomId", "userId", "fullName", "startTime", "logId"]
     }
   },
   "auth": {
