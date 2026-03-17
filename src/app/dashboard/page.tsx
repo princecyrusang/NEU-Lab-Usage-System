@@ -8,8 +8,6 @@ import {
   doc, 
   updateDoc, 
   deleteDoc, 
-  addDoc, 
-  serverTimestamp 
 } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,35 +23,21 @@ import {
   Loader2,
   Users,
   Database,
-  Building2,
   UserCircle2,
   Clock,
   AlertTriangle,
-  DoorClosed,
   DoorOpen,
-  User,
   Activity
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-const COLLEGES_AND_OFFICES = [
-  "College of Arts and Sciences",
-  "College of Business Administration",
-  "College of Computer Studies",
-  "College of Education",
-  "College of Engineering and Architecture",
-  "College of Music",
-  "College of Nursing",
-  "College of Communication",
-  "College of Criminology",
-  "Center for Medical and Health Sciences",
-  "Graduate School",
-  "College of Law",
-  "Office of the Registrar",
-  "Office of Admissions",
-  "Other Administrative Offices",
+const CICS_PROGRAMS = [
+  "BSIT (Bachelor of Science in Information Technology)",
+  "BSCS (Bachelor of Science in Computer Science)",
+  "BSIS (Bachelor of Science in Information System)",
+  "BSEMC (Bachelor of Science in Entertainment and Multimedia Computing)",
 ];
 
 const LAB_ROOMS = Array.from({ length: 10 }, (_, i) => `Computer Lab ${101 + i}`);
@@ -108,7 +92,7 @@ export default function LaboratoryDashboard() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
-  const [selectedOffice, setSelectedOffice] = useState<string>("");
+  const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isStopping, setIsStopping] = useState<string | null>(null);
 
@@ -118,14 +102,12 @@ export default function LaboratoryDashboard() {
 
   const isAdmin = profile?.role === "Admin";
 
-  // Real-time Active Sessions
   const activeSessionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, "active_sessions");
   }, [firestore]);
-  const { data: activeSessions, isLoading: sessionsLoading } = useCollection(activeSessionsQuery);
+  const { data: activeSessions } = useCollection(activeSessionsQuery);
 
-  // Global Stats
   const usageQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, "lab_usage");
@@ -141,7 +123,6 @@ export default function LaboratoryDashboard() {
   const stats = useMemo(() => {
     return {
       active: activeSessions?.length || 0,
-      available: LAB_ROOMS.length - (activeSessions?.length || 0),
       totalHistory: allHistory?.length || 0,
       totalFaculty: allUsers?.length || 0,
     };
@@ -159,7 +140,6 @@ export default function LaboratoryDashboard() {
       const diffMins = Math.floor((diffMs % 3600000) / 60000);
       const durationStr = isAuto ? "3h 0m (Auto-Closed)" : `${diffHrs}h ${diffMins}m`;
 
-      // 1. Update the EXISTING history record (Targeting logId created at start)
       if (session.logId) {
         const logRef = doc(firestore, "lab_usage", session.logId);
         await updateDoc(logRef, {
@@ -171,8 +151,6 @@ export default function LaboratoryDashboard() {
         });
       }
 
-      // 2. Clear active status (Delete the session lock)
-      // session.id corresponds to the roomId because it's the document name
       await deleteDoc(doc(firestore, "active_sessions", session.id));
 
       toast({
@@ -195,12 +173,12 @@ export default function LaboratoryDashboard() {
   }, [firestore, isStopping, toast]);
 
   const handleCompleteSetup = async () => {
-    if (!selectedOffice || !user || !firestore) return;
+    if (!selectedProgram || !user || !firestore) return;
     setIsUpdatingProfile(true);
     try {
       const userRef = doc(firestore, "users", user.uid);
       await updateDoc(userRef, {
-        collegeOffice: selectedOffice,
+        collegeOffice: selectedProgram,
         isSetupComplete: true,
       });
       toast({ title: "Setup Complete" });
@@ -221,23 +199,22 @@ export default function LaboratoryDashboard() {
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] flex flex-col w-full max-w-none">
-      {/* Onboarding Modal */}
       {!profile.isSetupComplete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
           <Card className="w-full max-w-lg shadow-2xl border-none overflow-visible">
             <CardHeader className="space-y-1 pb-8 border-b bg-accent/30 rounded-t-xl">
               <CardTitle className="text-2xl font-bold text-primary">Welcome, {profile.fullName}!</CardTitle>
-              <CardDescription>Please identify your university affiliation to continue.</CardDescription>
+              <CardDescription>Select your CICS Degree Program to continue.</CardDescription>
             </CardHeader>
             <CardContent className="pt-8 space-y-6 overflow-visible">
               <div className="space-y-4">
-                <Label className="font-bold">College or Office</Label>
-                <Select onValueChange={setSelectedOffice} value={selectedOffice}>
+                <Label className="font-bold text-slate-700">CICS Program</Label>
+                <Select onValueChange={setSelectedProgram} value={selectedProgram}>
                   <SelectTrigger className="w-full py-8 text-lg border-2">
-                    <SelectValue placeholder="Select from registry..." />
+                    <SelectValue placeholder="Choose program..." />
                   </SelectTrigger>
                   <SelectContent className="z-[150]">
-                    {COLLEGES_AND_OFFICES.map((o) => (
+                    {CICS_PROGRAMS.map((o) => (
                       <SelectItem key={o} value={o}>{o}</SelectItem>
                     ))}
                   </SelectContent>
@@ -246,7 +223,7 @@ export default function LaboratoryDashboard() {
               <Button 
                 onClick={handleCompleteSetup} 
                 className="w-full py-8 text-xl font-black bg-primary"
-                disabled={isUpdatingProfile || !selectedOffice}
+                disabled={isUpdatingProfile || !selectedProgram}
               >
                 {isUpdatingProfile ? "Saving..." : "Complete Setup"}
               </Button>
@@ -255,7 +232,6 @@ export default function LaboratoryDashboard() {
         </div>
       )}
 
-      {/* Full Width Top Nav */}
       <header className="bg-primary text-white py-5 shadow-xl sticky top-0 z-50">
         <div className="w-full px-6 md:px-12 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -263,14 +239,14 @@ export default function LaboratoryDashboard() {
               <Database className="w-7 h-7 text-cyan-300" />
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tight leading-none uppercase">NEU LAB ROOM</h1>
-              <p className="text-[10px] font-black text-cyan-400 mt-1 uppercase tracking-widest">Real-Time Management System</p>
+              <h1 className="text-xl font-black tracking-tight leading-none uppercase">CICS LAB COMMAND</h1>
+              <p className="text-[10px] font-black text-cyan-400 mt-1 uppercase tracking-widest">Informatics & Computing Studies</p>
             </div>
           </div>
           <div className="flex items-center gap-6">
              <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/10">
                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest">System Operational</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">CICS Systems Online</span>
              </div>
              <Button variant="ghost" onClick={logout} className="text-white hover:bg-white/10 h-10 w-10 p-0">
                <LogOut className="w-6 h-6" />
@@ -280,13 +256,11 @@ export default function LaboratoryDashboard() {
       </header>
 
       <main className="w-full px-6 md:px-12 py-10 flex-1 flex flex-col space-y-10">
-        
-        {/* Dynamic Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="border-none shadow-md bg-white border-l-4 border-blue-600">
             <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Total Usage</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">CICS Total Usage</p>
                 <p className="text-3xl font-black text-slate-900">{stats.totalHistory}</p>
               </div>
               <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><History className="w-6 h-6" /></div>
@@ -295,7 +269,7 @@ export default function LaboratoryDashboard() {
           <Card className="border-none shadow-md bg-white border-l-4 border-green-500">
             <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Registered Faculty</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Enrolled Faculty</p>
                 <p className="text-3xl font-black text-slate-900">{stats.totalFaculty}</p>
               </div>
               <div className="p-3 bg-green-50 text-green-600 rounded-xl"><Users className="w-6 h-6" /></div>
@@ -304,7 +278,7 @@ export default function LaboratoryDashboard() {
           <Card className="border-none shadow-md bg-white border-l-4 border-cyan-500">
             <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Active Labs</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Active Sessions</p>
                 <p className="text-3xl font-black text-slate-900">{stats.active}</p>
               </div>
               <div className="p-3 bg-cyan-50 text-cyan-600 rounded-xl"><Activity className="w-6 h-6" /></div>
@@ -319,26 +293,23 @@ export default function LaboratoryDashboard() {
               <div className="overflow-hidden">
                 <p className="text-sm font-black truncate">{profile.fullName}</p>
                 <Badge variant="outline" className="text-[9px] font-black uppercase tracking-tighter text-cyan-400 border-cyan-400/30 px-1.5 h-4 mt-1">
-                  {isAdmin ? "System Administrator" : "Professor"}
+                  {isAdmin ? "System Administrator" : profile.collegeOffice || "CICS Member"}
                 </Badge>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Grid Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
-          
-          {/* Laboratory Availability Map */}
           <div className="lg:col-span-3 space-y-6">
             <div className="flex items-center justify-between">
                <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
                  <Database className="w-8 h-8 text-primary" />
-                 Laboratory Availability Map
+                 CICS Lab Availability Map
                </h2>
                <div className="bg-white px-4 py-2 rounded-xl shadow-sm border text-[10px] font-black uppercase text-slate-500 flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-green-500" />
-                  Live Syncing Active
+                  Real-Time Synchronization
                </div>
             </div>
 
@@ -384,7 +355,7 @@ export default function LaboratoryDashboard() {
                                 onClick={() => handleStopSession(session)}
                                 disabled={isStopping === session.id}
                               >
-                                {isStopping === session.id ? "Stopping..." : "End Session"}
+                                {isStopping === session.id ? "Ending..." : "End Session"}
                               </Button>
                             )}
                           </div>
@@ -392,7 +363,7 @@ export default function LaboratoryDashboard() {
                       ) : (
                         <div className="py-10 text-center flex flex-col items-center">
                           <DoorOpen className="w-12 h-12 text-slate-100 group-hover:text-green-500/20 transition-all duration-500" />
-                          <p className="text-[9px] mt-4 font-black uppercase text-slate-300 tracking-[0.2em]">Ready</p>
+                          <p className="text-[9px] mt-4 font-black uppercase text-slate-300 tracking-[0.2em]">Vacant</p>
                         </div>
                       )}
                     </CardContent>
@@ -402,7 +373,6 @@ export default function LaboratoryDashboard() {
             </div>
           </div>
 
-          {/* Side Panel Actions */}
           <div className="lg:col-span-1 space-y-6">
             <div className="space-y-4 pt-14">
               <Link href="/check-in/" className="block">
@@ -411,8 +381,8 @@ export default function LaboratoryDashboard() {
                     <QrCode className="w-7 h-7" />
                   </div>
                   <div className="text-left">
-                    <p className="text-lg font-black">Log Lab Usage</p>
-                    <p className="text-[10px] font-bold opacity-70">Occupy university facility</p>
+                    <p className="text-lg font-black">Scan ID to Log</p>
+                    <p className="text-[10px] font-bold opacity-70">Begin CICS Lab Session</p>
                   </div>
                 </Button>
               </Link>
@@ -421,7 +391,7 @@ export default function LaboratoryDashboard() {
                 <Link href="/profile/" className="block">
                   <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4 group">
                     <div className="p-2 bg-blue-50 text-primary rounded-lg"><Settings className="w-5 h-5" /></div>
-                    <p className="text-sm font-black">Faculty Settings</p>
+                    <p className="text-sm font-black">Profile Management</p>
                   </Button>
                 </Link>
 
@@ -430,13 +400,13 @@ export default function LaboratoryDashboard() {
                     <Link href="/history/" className="block">
                       <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4 group">
                         <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><History className="w-5 h-5" /></div>
-                        <p className="text-sm font-black">Usage Registry</p>
+                        <p className="text-sm font-black">CICS Usage Logs</p>
                       </Button>
                     </Link>
                     <Link href="/admin/" className="block">
                       <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4 group">
                         <div className="p-2 bg-destructive/5 text-destructive rounded-lg"><ShieldCheck className="w-5 h-5" /></div>
-                        <p className="text-sm font-black">Admin Center</p>
+                        <p className="text-sm font-black">Admin Command</p>
                       </Button>
                     </Link>
                   </>
@@ -447,10 +417,10 @@ export default function LaboratoryDashboard() {
             <div className="p-8 bg-[#0F172A] rounded-3xl text-white space-y-4 shadow-2xl relative overflow-hidden">
                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" />
                <div className="flex items-center gap-2 text-cyan-400 font-black text-[10px] uppercase tracking-widest relative z-10">
-                  <Clock className="w-4 h-4" /> Policy Enforcement
+                  <Clock className="w-4 h-4" /> CICS POLICY
                </div>
                <p className="text-xs leading-relaxed text-slate-400 relative z-10 font-medium">
-                  Laboratory sessions are strictly capped at 3 hours. Sessions exceeding this limit are automatically finalized in the institutional registry.
+                  Laboratory sessions are strictly capped at 3 hours. Please ensure logs are finalized to maintain accurate departmental metrics.
                </p>
             </div>
           </div>
@@ -459,7 +429,7 @@ export default function LaboratoryDashboard() {
 
       <footer className="py-8 text-center bg-white/50 backdrop-blur-sm border-t mt-auto w-full">
         <p className="text-[9px] text-slate-400 uppercase font-black tracking-[0.5em]">
-          New Era University • Real-Time Information Systems Division
+          CICS Command Center • Informatics and Computing Studies
         </p>
       </footer>
     </div>

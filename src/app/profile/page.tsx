@@ -15,29 +15,18 @@ import { useToast } from "@/hooks/use-toast";
 import { DoorOpen, ArrowLeft, UserCircle2, Building2, Save } from "lucide-react";
 import Link from "next/link";
 
-const COLLEGES_AND_OFFICES = [
-  "College of Arts and Sciences",
-  "College of Business Administration",
-  "College of Computer Studies",
-  "College of Education",
-  "College of Engineering and Architecture",
-  "College of Music",
-  "College of Nursing",
-  "College of Communication",
-  "College of Criminology",
-  "Center for Medical and Health Sciences",
-  "Graduate School",
-  "College of Law",
-  "Office of the Registrar",
-  "Office of Admissions",
-  "Other Administrative Offices",
+const CICS_PROGRAMS = [
+  "BSIT (Bachelor of Science in Information Technology)",
+  "BSCS (Bachelor of Science in Computer Science)",
+  "BSIS (Bachelor of Science in Information System)",
+  "BSEMC (Bachelor of Science in Entertainment and Multimedia Computing)",
 ];
 
 export default function ProfileSettingsPage() {
   const { profile, user, loading } = useAuth();
   const firestore = useFirestore();
   const [fullName, setFullName] = useState("");
-  const [selectedOffice, setSelectedOffice] = useState("");
+  const [selectedProgram, setSelectedProgram] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -45,16 +34,16 @@ export default function ProfileSettingsPage() {
   useEffect(() => {
     if (profile) {
       setFullName(profile.fullName || "");
-      setSelectedOffice(profile.collegeOffice || "");
+      setSelectedProgram(profile.collegeOffice || "");
     }
   }, [profile]);
 
   const handleSubmit = async () => {
-    if (!fullName || !selectedOffice || !user || !firestore) {
+    if (!fullName || !selectedProgram || !user || !firestore) {
       toast({
         variant: "destructive",
-        title: "Incomplete Form",
-        description: "Please fill in all fields to proceed.",
+        title: "Incomplete Profile",
+        description: "Please provide your full name and degree program.",
       });
       return;
     }
@@ -64,11 +53,11 @@ export default function ProfileSettingsPage() {
       const userRef = doc(firestore, "users", user.uid);
       await updateDoc(userRef, {
         fullName: fullName,
-        collegeOffice: selectedOffice,
+        collegeOffice: selectedProgram,
       });
       toast({
-        title: "Profile Updated",
-        description: "Your details have been successfully updated.",
+        title: "CICS Profile Updated",
+        description: "Your degree program affiliation has been saved.",
       });
       router.push("/dashboard");
     } catch (error: any) {
@@ -99,7 +88,7 @@ export default function ProfileSettingsPage() {
         <div className="container mx-auto px-4 flex justify-between items-center">
           <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <DoorOpen className="w-8 h-8" />
-            <h1 className="text-xl font-bold tracking-tight">NEU LAB ROOM</h1>
+            <h1 className="text-xl font-bold tracking-tight">CICS COMMAND</h1>
           </Link>
           <Link href="/dashboard">
             <Button 
@@ -116,8 +105,8 @@ export default function ProfileSettingsPage() {
       <main className="container mx-auto px-4 py-12 max-w-2xl">
         <div className="space-y-8">
           <div>
-            <h2 className="text-3xl font-bold text-primary">Profile Settings</h2>
-            <p className="text-muted-foreground">Manage your university affiliation and personal details.</p>
+            <h2 className="text-3xl font-bold text-primary">CICS Profile</h2>
+            <p className="text-muted-foreground">Manage your informatics degree program affiliation.</p>
           </div>
 
           <Card className="shadow-lg border-none overflow-hidden">
@@ -127,50 +116,49 @@ export default function ProfileSettingsPage() {
                   <UserCircle2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl">Institutional Identity</CardTitle>
-                  <CardDescription>Verified @neu.edu.ph account</CardDescription>
+                  <CardTitle className="text-xl">Faculty Identity</CardTitle>
+                  <CardDescription>Verified CICS Academic Account</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="pt-8 space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-muted-foreground">Email Address</Label>
+                  <Label htmlFor="email" className="text-muted-foreground">Institutional Email</Label>
                   <Input 
                     id="email" 
                     value={profile.email} 
                     disabled 
                     className="bg-muted cursor-not-allowed"
                   />
-                  <p className="text-xs text-muted-foreground">Institutional email cannot be changed.</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="fullName" className="flex items-center gap-2">
+                  <Label htmlFor="fullName" className="flex items-center gap-2 font-bold">
                     Full Name
                   </Label>
                   <Input 
                     id="fullName" 
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Enter your full name"
+                    placeholder="Enter your name"
                     className="py-6"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="office" className="flex items-center gap-2">
+                  <Label htmlFor="program" className="flex items-center gap-2 font-bold">
                     <Building2 className="w-4 h-4" />
-                    College or Office
+                    CICS Degree Program
                   </Label>
-                  <Select onValueChange={setSelectedOffice} value={selectedOffice}>
-                    <SelectTrigger id="office" className="w-full py-6">
-                      <SelectValue placeholder="Select your affiliation..." />
+                  <Select onValueChange={setSelectedProgram} value={selectedProgram}>
+                    <SelectTrigger id="program" className="w-full py-6">
+                      <SelectValue placeholder="Select CICS program..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {COLLEGES_AND_OFFICES.map((office) => (
-                        <SelectItem key={office} value={office}>
-                          {office}
+                      {CICS_PROGRAMS.map((prog) => (
+                        <SelectItem key={prog} value={prog}>
+                          {prog}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -182,10 +170,10 @@ export default function ProfileSettingsPage() {
                 <Button 
                   onClick={handleSubmit} 
                   className="w-full py-6 text-lg font-bold shadow-lg"
-                  disabled={isSubmitting || !fullName || !selectedOffice}
+                  disabled={isSubmitting || !fullName || !selectedProgram}
                 >
                   <Save className="w-5 h-5 mr-2" />
-                  {isSubmitting ? "Saving Changes..." : "Save Profile Details"}
+                  {isSubmitting ? "Syncing..." : "Update Program Info"}
                 </Button>
               </div>
             </CardContent>
