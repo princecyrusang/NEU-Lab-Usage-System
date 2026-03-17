@@ -1,4 +1,3 @@
-
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -18,7 +17,7 @@ export function initializeFirebase() {
   }
   
   const auth = getAuth(app);
-  // Ensure the session survives page refreshes and browser restarts
+  // CRITICAL: Ensure the session survives page refreshes and browser restarts
   setPersistence(auth, browserLocalPersistence).catch(err => {
     console.error("Firebase persistence error:", err);
   });

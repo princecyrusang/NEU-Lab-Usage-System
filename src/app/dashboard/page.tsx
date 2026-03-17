@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -13,19 +12,45 @@ import {
   Building,
   Mail,
   ChevronRight,
-  QrCode
+  QrCode,
+  Loader2
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export default function LaboratoryDashboard() {
   const { profile, logout, loading } = useAuth();
+  const [retryCount, setRetryCount] = useState(0);
 
-  if (loading || !profile) {
+  // Resilience: If loading is done but profile is missing, retry after 1s
+  useEffect(() => {
+    if (!loading && !profile && retryCount < 3) {
+      const timer = setTimeout(() => setRetryCount(prev => prev + 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, profile, retryCount]);
+
+  if (loading || (!profile && retryCount < 3)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="text-6xl mb-4">🚪</div>
-          <div className="h-4 w-32 bg-muted rounded" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          <p className="text-sm font-medium text-muted-foreground animate-pulse">
+            {loading ? "Verifying Credentials..." : "Setting up your profile..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Final fallback if profile still missing after retries
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 text-center">
+        <div className="space-y-4 max-w-sm">
+          <h2 className="text-2xl font-bold text-primary">Setup in Progress</h2>
+          <p className="text-muted-foreground">We're finalizing your account details. Please wait a moment or try refreshing.</p>
+          <Button onClick={() => window.location.reload()} className="w-full">Refresh Page</Button>
         </div>
       </div>
     );

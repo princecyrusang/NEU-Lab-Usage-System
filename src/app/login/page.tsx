@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -23,11 +22,11 @@ export default function LoginPage() {
     }
   }, [user, authLoading]);
 
-  // Fail-safe: If verifying takes too long, show manual entry button
+  // Fail-safe: If verifying takes too long (3s), show manual entry button
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!user) setShowManualEntry(true);
-    }, 3500);
+    }, 3000);
     return () => clearTimeout(timer);
   }, [user]);
 
@@ -38,7 +37,7 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
       await signInWithPopup(firebaseAuth, provider);
-      // Hard redirect to break any loops
+      // Hard redirect to break any session loops
       window.location.href = "/dashboard/";
     } catch (error: any) {
       console.error("Login error:", error);

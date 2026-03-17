@@ -1,13 +1,9 @@
-
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { 
   User, 
   signOut, 
-  signInWithRedirect, 
-  GoogleAuthProvider, 
-  getRedirectResult, 
   onAuthStateChanged 
 } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -29,7 +25,6 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
-  login: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -55,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(data);
         return data;
       } else {
+        // Create new profile with default role 'Professor'
         const newProfile: UserProfile = {
           id: firebaseUser.uid,
           email: firebaseUser.email || "",
@@ -64,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           isSetupComplete: false,
           isBlocked: false,
         };
+        // Explicitly await the write before continuing to avoid dashboard race conditions
         await setDoc(docRef, newProfile);
         setProfile(newProfile);
         return newProfile;
@@ -76,11 +73,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!firebaseAuth) return;
-
-    // Process redirect result immediately on mount
-    getRedirectResult(firebaseAuth).catch(err => {
-      console.error("Redirect handler error:", err);
-    });
 
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -97,8 +89,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setLoading(false);
           return;
         }
-        setUser(firebaseUser);
+        
+        // Wait for sync to finish before letting the app proceed
         await syncProfile(firebaseUser);
+        setUser(firebaseUser);
       } else {
         setUser(null);
         setProfile(null);
@@ -129,23 +123,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, profile, loading, pathname]);
 
-  const login = async () => {
-    if (!firebaseAuth) return;
-    setLoading(true);
-    try {
-      const googleProvider = new GoogleAuthProvider();
-      googleProvider.setCustomParameters({ prompt: "select_account" });
-      await signInWithRedirect(firebaseAuth, googleProvider);
-    } catch (error: any) {
-      setLoading(false);
-      toast({
-        variant: "destructive",
-        title: "Login Error",
-        description: error.message || "Failed to initiate login.",
-      });
-    }
-  };
-
   const logout = async () => {
     if (!firebaseAuth) return;
     setLoading(true);
@@ -154,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );
