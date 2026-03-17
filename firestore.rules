@@ -33,20 +33,20 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
+      // Allow listing for all institutional members to support dynamic Dashboard stats
+      allow list: if isInstitutionalEmail();
       // Allow creation and update for institutional users on their own doc
       allow create, update: if (isOwner(userId) && isInstitutionalEmail()) || isAdmin();
       allow delete: if isAdmin();
     }
 
     match /lab_usage/{logId} {
-      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (
-        isAdmin() || 
-        (resource.data.userId == request.auth.uid)
-      );
-      allow create: if isSignedIn() && isInstitutionalEmail() &&
+      // Allow institutional users to see the presence of logs for Dashboard/Monitor counts
+      allow get, list: if isInstitutionalEmail();
+      
+      allow create: if isInstitutionalEmail() &&
                     request.resource.data.userId == request.auth.uid;
+                    
       allow update, delete: if isAdmin();
     }
   }
