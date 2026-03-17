@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -190,7 +189,7 @@ export default function LaboratoryDashboard() {
       {/* Onboarding Modal Overlay */}
       {!profile.isSetupComplete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <Card className="w-full max-w-lg shadow-2xl border-none">
+          <Card className="w-full max-w-lg shadow-2xl border-none overflow-visible">
             <CardHeader className="space-y-1 pb-8 border-b bg-accent/30 rounded-t-xl">
               <div className="flex items-center gap-2 text-primary mb-2">
                 <UserCircle2 className="w-6 h-6" />
@@ -201,7 +200,7 @@ export default function LaboratoryDashboard() {
                 To access the laboratory monitoring system, please identify your primary affiliation.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-8 space-y-8">
+            <CardContent className="pt-8 space-y-8 overflow-visible">
               <div className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-muted-foreground font-bold uppercase text-[10px] tracking-widest">Institutional Identity</Label>
