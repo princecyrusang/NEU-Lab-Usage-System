@@ -5,14 +5,23 @@ import { useState, useEffect, useMemo } from "react";
 import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
 import { collection } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bar, BarChart, XAxis, YAxis, Pie, PieChart, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { 
+  Bar, 
+  BarChart, 
+  XAxis, 
+  YAxis, 
+  Area, 
+  AreaChart, 
+  ResponsiveContainer, 
+  Legend, 
+  Tooltip,
+  CartesianGrid 
+} from "recharts";
 import { useAuth } from "@/context/auth-context";
-import { Loader2, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert, TrendingUp, Landmark, Monitor } from "lucide-react";
 import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-
-const COLORS = ['#0C46A3', '#47C1EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export default function LaboratoryReportsPage() {
   const { profile, loading: authLoading } = useAuth();
@@ -66,24 +75,20 @@ export default function LaboratoryReportsPage() {
     }, []);
 
     // Usage per day
-    const days = logs.reduce((acc: any[], log) => {
+    const dayMap: Record<string, number> = {};
+    logs.forEach((log) => {
       const dateObj = getLogDate(log.timestamp);
-      if (!dateObj || isNaN(dateObj.getTime())) return acc;
-      
-      const dateKey = dateObj.toISOString().split('T')[0];
-      const existing = acc.find(a => a.date === dateKey);
-      if (existing) {
-        existing.count += 1;
-      } else {
-        acc.push({ date: dateKey, count: 1 });
-      }
-      return acc;
-    }, []).sort((a: any, b: any) => a.date.localeCompare(b.date));
+      if (!dateObj || isNaN(dateObj.getTime())) return;
+      const dateKey = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dayMap[dateKey] = (dayMap[dateKey] || 0) + 1;
+    });
 
-    return { roomData: rooms, collegeData: colleges, usageByDay: days };
+    const usageByDay = Object.entries(dayMap)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return { roomData: rooms, collegeData: colleges, usageByDay };
   }, [logs]);
-
-  const { roomData, collegeData, usageByDay } = stats;
 
   if (authLoading || !isMounted) {
     return (
@@ -103,9 +108,7 @@ export default function LaboratoryReportsPage() {
             </div>
             <div className="space-y-2">
               <h3 className="text-2xl font-bold text-destructive">Restricted Access</h3>
-              <p className="text-muted-foreground">
-                Institutional reports are only accessible to system administrators.
-              </p>
+              <p className="text-muted-foreground">Institutional reports are only accessible to system administrators.</p>
             </div>
             <Link href="/dashboard/" className="block">
               <Button className="w-full py-6">Return to Dashboard</Button>
@@ -117,10 +120,10 @@ export default function LaboratoryReportsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-10">
       <AdminPageHeader 
         title="Institutional Reports" 
-        description="Data analysis of NEU LAB ROOM utilization and faculty engagement." 
+        description="Data analysis of NEU LAB ROOM utilization and faculty engagement trends." 
       />
 
       {usageLoading ? (
@@ -128,66 +131,97 @@ export default function LaboratoryReportsPage() {
           <Loader2 className="w-10 h-10 text-primary animate-spin" />
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="border-none shadow-md">
-            <CardHeader>
-              <CardTitle>Room Utilization Distribution</CardTitle>
+        <div className="grid gap-6">
+          {/* Main Trend Chart */}
+          <Card className="border-none shadow-sm overflow-hidden bg-white">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                  Usage Frequency Trends
+                </CardTitle>
+                <p className="text-xs text-muted-foreground font-medium">Daily session volume across all facilities</p>
+              </div>
             </CardHeader>
-            <CardContent className="h-[300px]">
+            <CardContent className="h-[400px] pt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={roomData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {roomData.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
+                <AreaChart data={stats.usageByDay}>
+                  <defs>
+                    <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0C46A3" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#0C46A3" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                  <XAxis 
+                    dataKey="date" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: "#64748B", fontWeight: 600 }}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: "#64748B", fontWeight: 600 }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                    itemStyle={{ color: '#0C46A3', fontWeight: 'bold' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="count" 
+                    stroke="#0C46A3" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorUsage)" 
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-md">
-            <CardHeader>
-              <CardTitle>Usage Frequency Trends</CardTitle>
-            </CardHeader>
-            <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={usageByDay}>
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#0C46A3" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Room Distribution */}
+            <Card className="border-none shadow-sm bg-white">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Monitor className="w-5 h-5 text-cyan-600" />
+                  Room Utilization
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={stats.roomData}>
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                    <YAxis axisLine={false} tickLine={false} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#0C46A3" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-          <Card className="border-none shadow-md lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Engagement by College / Department</CardTitle>
-            </CardHeader>
-            <CardContent className="h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={collegeData} layout="vertical">
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={180} />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#47C1EB" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+            {/* Engagement by Office */}
+            <Card className="border-none shadow-sm bg-white">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Landmark className="w-5 h-5 text-indigo-600" />
+                  Office Engagement
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={stats.collegeData} layout="vertical">
+                    <XAxis type="number" axisLine={false} tickLine={false} />
+                    <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
+                    <Tooltip />
+                    <Bar dataKey="value" fill="#47C1EB" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
     </div>

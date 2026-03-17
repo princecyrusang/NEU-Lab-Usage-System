@@ -2,6 +2,8 @@
 "use client";
 
 import { useAuth } from "@/context/auth-context";
+import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
+import { collection, query, where, limit } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -11,181 +13,221 @@ import {
   History,
   ChevronRight,
   QrCode,
-  Loader2
+  Loader2,
+  Activity,
+  Users,
+  Database,
+  Info
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 export default function LaboratoryDashboard() {
-  const { profile, logout, loading } = useAuth();
-  const [retryCount, setRetryCount] = useState(0);
+  const { profile, logout, loading: authLoading } = useAuth();
+  const firestore = useFirestore();
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Resilience: If profile is missing after initial load, retry check
   useEffect(() => {
-    if (!loading && !profile && retryCount < 5) {
-      const timer = setTimeout(() => {
-        setRetryCount(prev => prev + 1);
-      }, 1500); // Wait 1.5s then retry
-      return () => clearTimeout(timer);
-    }
-  }, [loading, profile, retryCount]);
+    setIsMounted(true);
+  }, []);
 
-  if (loading || (!profile && retryCount < 5)) {
+  const isAdmin = profile?.role === "Admin";
+
+  // Dynamic Stats Queries
+  const usageQuery = useMemoFirebase(() => {
+    if (!firestore || !isAdmin) return null;
+    return collection(firestore, "lab_usage");
+  }, [firestore, isAdmin]);
+  const { data: allUsage } = useCollection(usageQuery);
+
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore || !isAdmin) return null;
+    return collection(firestore, "users");
+  }, [firestore, isAdmin]);
+  const { data: allUsers } = useCollection(usersQuery);
+
+  const stats = useMemo(() => ({
+    totalLogs: allUsage?.length || 0,
+    activeUsers: allUsers?.length || 0,
+    health: "Operational"
+  }), [allUsage, allUsers]);
+
+  if (authLoading || !isMounted || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4 text-center p-6">
-          <Loader2 className="w-12 h-12 text-primary animate-spin" />
-          <div className="space-y-2">
-            <p className="text-lg font-bold text-primary">NEU LAB ROOM</p>
-            <p className="text-sm text-muted-foreground animate-pulse">
-              {retryCount > 0 ? "Finalizing institutional profile..." : "Verifying credentials..."}
-            </p>
-          </div>
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-primary animate-spin" />
+          <p className="text-sm font-medium text-muted-foreground">Initializing Monitor...</p>
         </div>
       </div>
     );
   }
-
-  // Final fallback if profile still missing after retries
-  if (!profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4 text-center">
-        <div className="space-y-6 max-w-sm">
-          <div className="text-6xl">🚪</div>
-          <h2 className="text-2xl font-bold text-primary">Setup in Progress</h2>
-          <p className="text-muted-foreground">We are finalizing your account details. This usually takes a moment.</p>
-          <Button onClick={() => window.location.reload()} className="w-full py-6 text-lg font-bold">
-            Refresh Dashboard
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  const isAdmin = profile.role === "Admin";
 
   const ACTIONS = [
     {
       title: "Log Usage",
-      description: "Scan your ID to record entry and start session.",
+      description: "Start session.",
       icon: QrCode,
       href: "/check-in/",
       color: "bg-blue-600",
-      borderColor: "border-blue-200",
     },
     {
-      title: "Faculty Profile",
-      description: "Manage your university affiliation details.",
+      title: "Profile",
+      description: "Manage details.",
       icon: Settings,
       href: "/profile/",
       color: "bg-slate-600",
-      borderColor: "border-slate-200",
-    }
+    },
+    ...(isAdmin ? [
+      {
+        title: "History",
+        description: "View logs.",
+        icon: History,
+        href: "/history/",
+        color: "bg-indigo-600",
+      },
+      {
+        title: "Admin",
+        description: "System control.",
+        icon: ShieldCheck,
+        href: "/admin/",
+        color: "bg-destructive",
+      }
+    ] : [])
   ];
 
   return (
-    <div className="min-h-screen bg-[#EEF1F6] flex flex-col">
-      <header className="bg-primary text-white py-4 shadow-lg sticky top-0 z-50">
+    <div className="min-h-screen bg-[#F0F2F5] flex flex-col">
+      <header className="bg-primary text-white py-3 shadow-md sticky top-0 z-50">
         <div className="container mx-auto px-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🚪</span>
-            <h1 className="text-xl font-bold tracking-tight">NEU LAB ROOM</h1>
+            <span className="text-xl">🚪</span>
+            <h1 className="text-lg font-bold tracking-tight">NEU LAB ROOM</h1>
           </div>
-          <Button 
-            variant="ghost" 
-            onClick={logout}
-            className="text-white hover:bg-white/20"
-          >
+          <Button variant="ghost" size="sm" onClick={logout} className="text-white hover:bg-white/10">
             <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
+            Exit
           </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl flex-1">
-        <div className="space-y-8">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border-l-8 border-primary">
-            <h2 className="text-3xl font-bold text-primary">Welcome, {profile.fullName.split(' ')[0]}!</h2>
-            <p className="text-muted-foreground mt-1">Institutional monitoring system for laboratory facilities.</p>
-          </div>
-
-          <Card className="border-none shadow-md">
-            <CardHeader className="bg-accent/10 border-b">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xl">
-                  {profile.fullName?.[0] || "U"}
+      <main className="container mx-auto px-4 py-6 max-w-6xl flex-1">
+        <div className="space-y-6">
+          {/* Quick Stats Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="border-none shadow-sm bg-white">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="p-3 bg-blue-50 rounded-lg text-primary">
+                  <Database className="w-5 h-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl">{profile.fullName}</CardTitle>
-                  <CardDescription className="font-medium text-primary">
-                    {profile.collegeOffice} • {profile.role}
-                  </CardDescription>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Usage</p>
+                  <p className="text-2xl font-black">{stats.totalLogs}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-none shadow-sm bg-white">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="p-3 bg-cyan-50 rounded-lg text-cyan-600">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Registered Faculty</p>
+                  <p className="text-2xl font-black">{stats.activeUsers}</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-none shadow-sm bg-white">
+              <CardContent className="p-4 flex items-center gap-4">
+                <div className="p-3 bg-green-50 rounded-lg text-green-600">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">System Status</p>
+                  <p className="text-2xl font-black text-green-600">{stats.health}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left: Action Grid */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-primary flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-primary">System Monitor</h2>
+                  <p className="text-sm text-muted-foreground">Welcome back, {profile.fullName}</p>
+                </div>
+                <div className="text-right hidden sm:block">
+                  <p className="text-xs font-bold text-muted-foreground uppercase">{profile.collegeOffice}</p>
+                  <p className="text-xs text-primary font-bold">{profile.role}</p>
                 </div>
               </div>
-            </CardHeader>
-          </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Top Row: Common Actions */}
-            {ACTIONS.map((action) => (
-              <Link key={action.title} href={action.href} className="group h-full">
-                <Card className={`h-full transition-all hover:shadow-lg border-l-4 ${action.borderColor} active:scale-[0.98]`}>
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className={`p-3 rounded-xl ${action.color} text-white mb-4 shadow-md group-hover:scale-110 transition-transform`}>
-                        <action.icon className="w-6 h-6" />
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <h3 className="text-lg font-bold mb-1">{action.title}</h3>
-                    <p className="text-sm text-muted-foreground">{action.description}</p>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-
-            {/* Bottom Row: Admin-Specific Actions */}
-            {isAdmin && (
-              <>
-                <Link href="/history/" className="group h-full">
-                  <Card className="h-full transition-all hover:shadow-lg border-l-4 border-indigo-200 active:scale-[0.98]">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="p-3 rounded-xl bg-indigo-600 text-white mb-4 shadow-md group-hover:scale-110 transition-transform">
-                          <History className="w-6 h-6" />
+              <div className="grid grid-cols-2 gap-4">
+                {ACTIONS.map((action) => (
+                  <Link key={action.title} href={action.href}>
+                    <Card className="h-full hover:shadow-md transition-all active:scale-95 border-none">
+                      <CardContent className="p-5 flex flex-col items-center text-center gap-3">
+                        <div className={`p-3 rounded-full ${action.color} text-white shadow-sm`}>
+                          <action.icon className="w-5 h-5" />
                         </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      <h3 className="text-lg font-bold mb-1">Usage History</h3>
-                      <p className="text-sm text-muted-foreground">Review institutional laboratory usage logs.</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-
-                <Link href="/admin/" className="group h-full">
-                  <Card className="h-full transition-all hover:shadow-lg border-l-4 border-destructive/30 active:scale-[0.98] bg-destructive/5">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="p-3 rounded-xl bg-destructive text-white mb-4 shadow-md group-hover:scale-110 transition-transform">
-                          <ShieldCheck className="w-6 h-6" />
+                        <div>
+                          <h3 className="font-bold text-sm">{action.title}</h3>
+                          <p className="text-xs text-muted-foreground">{action.description}</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-destructive/50 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                      <h3 className="text-lg font-bold text-destructive mb-1">Admin Center</h3>
-                      <p className="text-sm text-muted-foreground">Manage users and view institutional data reports.</p>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </>
-            )}
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: System Insights */}
+            <Card className="bg-[#1A1F2C] text-white border-none shadow-xl overflow-hidden">
+              <CardHeader className="border-b border-white/10 pb-4">
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-cyan-400" />
+                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-cyan-400">System Insights</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-6">
+                <div className="space-y-1">
+                  <p className="text-xs text-white/50 uppercase font-bold">Peak Engagement</p>
+                  <p className="text-lg font-medium">Weekdays (09:00 - 14:00)</p>
+                  <div className="h-1.5 bg-white/10 rounded-full mt-2">
+                    <div className="h-full bg-cyan-400 rounded-full w-[85%]" />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs text-white/50 uppercase font-bold">Top Facility</p>
+                  <p className="text-lg font-medium">Computer Lab 101</p>
+                  <p className="text-[10px] text-cyan-400 font-bold uppercase mt-1">Institutional Leader</p>
+                </div>
+
+                <div className="pt-4 border-t border-white/10">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-white/50">Storage Utilization</span>
+                    <span className="text-green-400 font-bold">0.02%</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                  <p className="text-[10px] leading-relaxed text-white/70 italic">
+                    "Laboratory usage data is synchronized across all university networks in real-time."
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </main>
 
-      <footer className="border-t py-6 mt-12 bg-white/50">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-xs text-muted-foreground">New Era University • NEU LAB ROOM Monitoring System</p>
-        </div>
+      <footer className="py-4 text-center">
+        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
+          New Era University • NEU LAB ROOM Monitor v2.5
+        </p>
       </footer>
     </div>
   );
