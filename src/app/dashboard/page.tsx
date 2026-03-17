@@ -2,7 +2,8 @@
 "use client";
 
 import { useAuth } from "@/context/auth-context";
-import { useFirestore, useMemoFirebase, useCollection } from "@/firebase";
+import { useFirestore, useMemoFirebase, useCollection, useFirebase } from "@/firebase";
+import { signOut } from "firebase/auth";
 import { 
   collection, 
   doc, 
@@ -88,8 +89,8 @@ function LiveTimer({ startTime, onAutoClose }: LiveTimerProps) {
 }
 
 export default function LaboratoryDashboard() {
-  const { profile, user, logout, loading: authLoading } = useAuth();
-  const firestore = useFirestore();
+  const { profile, user, loading: authLoading } = useAuth();
+  const { auth, firestore } = useFirebase();
   const { toast } = useToast();
   const [isMounted, setIsMounted] = useState(false);
   const [selectedProgram, setSelectedProgram] = useState<string>("");
@@ -128,9 +129,14 @@ export default function LaboratoryDashboard() {
     };
   }, [activeSessions, allHistory, allUsers]);
 
-  const handleLogoutWithConfirm = () => {
-    if (window.confirm("Are you sure you want to sign out from the CICS Command Center?")) {
-      logout();
+  const handleLogout = async () => {
+    if (window.confirm('Are you sure you want to sign out?')) {
+      try {
+        await signOut(auth);
+        window.location.href = '/'; 
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
     }
   };
 
@@ -255,7 +261,8 @@ export default function LaboratoryDashboard() {
                 <span className="text-[10px] font-black uppercase tracking-widest">CICS Systems Online</span>
              </div>
              <Button 
-                onClick={handleLogoutWithConfirm} 
+                onClick={handleLogout} 
+                style={{ cursor: 'pointer' }}
                 className="bg-white text-primary hover:bg-red-50 hover:text-red-600 transition-colors font-bold flex items-center gap-2 px-4 h-10 rounded-md shadow-sm"
              >
                <LogOut className="w-4 h-4" />
