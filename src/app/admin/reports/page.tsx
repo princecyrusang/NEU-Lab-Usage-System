@@ -6,14 +6,12 @@ import { useMemoFirebase, useCollection, useFirestore } from "@/firebase";
 import { collection, query, where, orderBy } from "firebase/firestore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
-  Bar, 
-  BarChart, 
-  XAxis, 
-  YAxis, 
   Area, 
   AreaChart, 
   ResponsiveContainer, 
   Tooltip,
+  XAxis,
+  YAxis,
   CartesianGrid 
 } from "recharts";
 import { useAuth } from "@/context/auth-context";
@@ -22,14 +20,19 @@ import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { 
-  subDays, 
-  subMonths, 
   format, 
   eachDayOfInterval, 
   eachMonthOfInterval, 
+  eachYearOfInterval,
   isSameDay, 
   isSameMonth,
-  startOfDay
+  isSameYear,
+  startOfWeek,
+  endOfWeek,
+  startOfYear,
+  endOfYear,
+  subYears,
+  startOfToday
 } from "date-fns";
 
 type FilterType = "weekly" | "monthly" | "yearly";
@@ -46,16 +49,28 @@ export default function LaboratoryReportsPage() {
   
   const isAdmin = profile?.role === "Admin";
 
-  const { filterStartDate, filterEndDate } = useMemo(() => {
+  const { filterStartDate, filterEndDate, subtitle } = useMemo(() => {
     const now = new Date();
-    let start;
-    if (timeFilter === "weekly") start = subDays(now, 6);
-    else if (timeFilter === "monthly") start = subDays(now, 29);
-    else start = subMonths(now, 11);
+    let start, end, sub;
+
+    if (timeFilter === "weekly") {
+      start = startOfWeek(now, { weekStartsOn: 0 });
+      end = endOfWeek(now, { weekStartsOn: 0 });
+      sub = `Data for the week of ${format(start, 'MMM dd')} - ${format(end, 'MMM dd, yyyy')}`;
+    } else if (timeFilter === "monthly") {
+      start = startOfYear(now);
+      end = endOfYear(now);
+      sub = `Monthly usage trend for year ${format(now, 'yyyy')}`;
+    } else {
+      start = startOfYear(subYears(now, 9));
+      end = endOfYear(now);
+      sub = `Institutional growth (10-Year Overview)`;
+    }
     
     return { 
-      filterStartDate: startOfDay(start), 
-      filterEndDate: now 
+      filterStartDate: start, 
+      filterEndDate: end,
+      subtitle: sub
     };
   }, [timeFilter]);
 
@@ -64,9 +79,10 @@ export default function LaboratoryReportsPage() {
     return query(
       collection(firestore, "lab_usage"),
       where("timestamp", ">=", filterStartDate.toISOString()),
+      where("timestamp", "<=", filterEndDate.toISOString()),
       orderBy("timestamp", "asc")
     );
-  }, [firestore, isAdmin, filterStartDate]);
+  }, [firestore, isAdmin, filterStartDate, filterEndDate]);
   
   const { data: logs, isLoading: usageLoading } = useCollection(usageQuery);
 
@@ -79,7 +95,7 @@ export default function LaboratoryReportsPage() {
       return new Date(ts);
     };
 
-    // Group by Room
+    // Group by Room (Top 10)
     const rooms = logs.reduce((acc: any[], log) => {
       const room = log.roomNumber || "Unknown Room";
       const existing = acc.find(a => a.name === room);
@@ -103,7 +119,7 @@ export default function LaboratoryReportsPage() {
       return acc;
     }, []).sort((a, b) => b.value - a.value);
 
-    // Usage Trend Logic with zero-filling
+    // Dynamic Usage Trend Aggregation
     let trend: { date: string, count: number, fullDate: string }[] = [];
 
     if (timeFilter === "weekly") {
@@ -114,25 +130,12 @@ export default function LaboratoryReportsPage() {
           return d && isSameDay(d, day);
         }).length;
         return { 
-          date: format(day, 'MMM dd'), 
+          date: format(day, 'EEE'), 
           count,
           fullDate: format(day, 'PPPP')
         };
       });
     } else if (timeFilter === "monthly") {
-      const days = eachDayOfInterval({ start: filterStartDate, end: filterEndDate });
-      trend = days.map(day => {
-        const count = logs.filter(log => {
-          const d = getLogDate(log.timestamp);
-          return d && isSameDay(d, day);
-        }).length;
-        return { 
-          date: format(day, 'MMM dd'), 
-          count,
-          fullDate: format(day, 'PPPP')
-        };
-      });
-    } else if (timeFilter === "yearly") {
       const months = eachMonthOfInterval({ start: filterStartDate, end: filterEndDate });
       trend = months.map(month => {
         const count = logs.filter(log => {
@@ -143,6 +146,19 @@ export default function LaboratoryReportsPage() {
           date: format(month, 'MMM'), 
           count,
           fullDate: format(month, 'MMMM yyyy')
+        };
+      });
+    } else if (timeFilter === "yearly") {
+      const years = eachYearOfInterval({ start: filterStartDate, end: filterEndDate });
+      trend = years.map(year => {
+        const count = logs.filter(log => {
+          const d = getLogDate(log.timestamp);
+          return d && isSameYear(d, year);
+        }).length;
+        return { 
+          date: format(year, 'yyyy'), 
+          count,
+          fullDate: `Year ${format(year, 'yyyy')}`
         };
       });
     }
@@ -208,8 +224,8 @@ export default function LaboratoryReportsPage() {
                 <TrendingUp className="w-6 h-6 text-primary" />
                 Usage Frequency Trends
               </CardTitle>
-              <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">
-                Data from {format(filterStartDate, 'MMM dd')} to {format(filterEndDate, 'MMM dd, yyyy')}
+              <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-1">
+                {subtitle}
               </p>
             </div>
             <div className="flex bg-muted/50 p-1 rounded-lg gap-1 self-end sm:self-auto border">
@@ -228,8 +244,8 @@ export default function LaboratoryReportsPage() {
                 <AreaChart data={stats.usageTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0C46A3" stopOpacity={0.15}/>
-                      <stop offset="95%" stopColor="#0C46A3" stopOpacity={0.01}/>
+                      <stop offset="5%" stopColor="#0C46A3" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#0C46A3" stopOpacity={0.02}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -238,7 +254,6 @@ export default function LaboratoryReportsPage() {
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fontSize: 10, fill: "#64748B", fontWeight: 700 }}
-                    interval={timeFilter === 'monthly' ? 4 : 0}
                   />
                   <YAxis 
                     axisLine={false} 
@@ -289,7 +304,13 @@ export default function LaboratoryReportsPage() {
             </CardHeader>
             <CardContent className="h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.roomData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                <AreaChart data={stats.roomData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
+                   <defs>
+                    <linearGradient id="colorRoom" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.02}/>
+                    </linearGradient>
+                  </defs>
                   <XAxis 
                     dataKey="name" 
                     axisLine={false} 
@@ -303,8 +324,8 @@ export default function LaboratoryReportsPage() {
                   <Tooltip 
                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                   />
-                  <Bar dataKey="value" fill="#0C46A3" radius={[6, 6, 0, 0]} barSize={40} />
-                </BarChart>
+                  <Area type="monotone" dataKey="value" stroke="#0891b2" fill="url(#colorRoom)" strokeWidth={3} />
+                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -320,7 +341,7 @@ export default function LaboratoryReportsPage() {
             </CardHeader>
             <CardContent className="h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.collegeData} layout="vertical" margin={{ top: 10, right: 30, left: 40, bottom: 10 }}>
+                <AreaChart data={stats.collegeData} layout="vertical" margin={{ top: 10, right: 30, left: 40, bottom: 10 }}>
                   <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
                   <YAxis 
                     dataKey="name" 
@@ -333,8 +354,8 @@ export default function LaboratoryReportsPage() {
                   <Tooltip 
                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                   />
-                  <Bar dataKey="value" fill="#47C1EB" radius={[0, 6, 6, 0]} barSize={20} />
-                </BarChart>
+                  <Area type="monotone" dataKey="value" stroke="#6366f1" fill="#6366f1" fillOpacity={0.1} strokeWidth={3} />
+                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
