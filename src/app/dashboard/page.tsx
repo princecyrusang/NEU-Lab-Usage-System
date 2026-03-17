@@ -129,17 +129,6 @@ export default function LaboratoryDashboard() {
     };
   }, [activeSessions, allHistory, allUsers]);
 
-  const handleLogout = async () => {
-    if (window.confirm('Are you sure you want to sign out?')) {
-      try {
-        await signOut(auth);
-        window.location.href = '/'; 
-      } catch (error) {
-        console.error('Logout error:', error);
-      }
-    }
-  };
-
   const handleStopSession = useCallback(async (session: any, isAuto = false) => {
     if (!firestore || isStopping === session.id) return;
     setIsStopping(session.id);
@@ -261,9 +250,9 @@ export default function LaboratoryDashboard() {
                 <span className="text-[10px] font-black uppercase tracking-widest">CICS Systems Online</span>
              </div>
              <Button 
-                onClick={handleLogout} 
-                style={{ cursor: 'pointer' }}
-                className="bg-white text-primary hover:bg-red-50 hover:text-red-600 transition-colors font-bold flex items-center gap-2 px-4 h-10 rounded-md shadow-sm"
+                type="button"
+                onClick={() => signOut(auth).then(() => window.location.href = '/')} 
+                className="bg-white text-primary hover:bg-red-50 hover:text-red-600 transition-colors font-bold flex items-center gap-2 px-4 h-10 rounded-md shadow-sm cursor-pointer"
              >
                <LogOut className="w-4 h-4" />
                <span className="text-sm">Sign Out</span>
