@@ -41,11 +41,11 @@ type FilterType = "weekly" | "monthly" | "yearly";
 
 const CICS_LABS = Array.from({ length: 10 }, (_, i) => `Computer Lab ${101 + i}`);
 
-const CICS_PROGRAMS = [
-  "BSIT (Bachelor of Science in Information Technology)",
-  "BSCS (Bachelor of Science in Computer Science)",
-  "BSIS (Bachelor of Science in Information System)",
-  "BSEMC (Bachelor of Science in Entertainment and Multimedia Computing)",
+const CICS_PROGRAMS_REGISTRY = [
+  { id: "BSIT", fullName: "BSIT (Bachelor of Science in Information Technology)" },
+  { id: "BSCS", fullName: "BSCS (Bachelor of Science in Computer Science)" },
+  { id: "BSIS", fullName: "BSIS (Bachelor of Science in Information System)" },
+  { id: "BSEMC", fullName: "BSEMC (Bachelor of Science in Entertainment and Multimedia Computing)" },
 ];
 
 export default function CICSReportsPage() {
@@ -106,22 +106,23 @@ export default function CICSReportsPage() {
       return new Date(ts);
     };
 
-    // 1. Normalized CICS Lab Utilization
+    // 1. Normalized CICS Lab Utilization (Computer Lab 101-110)
     const roomMap = CICS_LABS.map(name => ({ name, value: 0 }));
     logs.forEach(log => {
       const room = roomMap.find(r => r.name === log.roomNumber);
       if (room) room.value++;
     });
 
-    // 2. Normalized Engagement by CICS Program
-    const programMap = CICS_PROGRAMS.map(name => ({ 
-      name: name.split(' ')[0], // Use shorthand like BSIT
-      fullName: name,
+    // 2. Normalized Engagement by CICS Program (BSIT, BSCS, BSIS, BSEMC)
+    const programMap = CICS_PROGRAMS_REGISTRY.map(prog => ({ 
+      name: prog.id, 
+      fullName: prog.fullName,
       value: 0 
     }));
+
     logs.forEach(log => {
-      const prog = programMap.find(p => p.fullName === log.collegeOffice);
-      if (prog) prog.value++;
+      const progMatch = programMap.find(p => p.fullName === log.collegeOffice);
+      if (progMatch) progMatch.value++;
     });
 
     // 3. Temporal Usage Trends
@@ -225,6 +226,7 @@ export default function CICSReportsPage() {
       />
 
       <div className="grid gap-6">
+        {/* Temporal Usage Trends */}
         <Card className="border-none shadow-sm overflow-hidden bg-white">
           <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2">
             <div>
@@ -301,6 +303,7 @@ export default function CICSReportsPage() {
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
+          {/* Room Utilization */}
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <div className="h-1 bg-cyan-500" />
             <CardHeader>
@@ -337,12 +340,13 @@ export default function CICSReportsPage() {
             </CardContent>
           </Card>
 
+          {/* Engagement by CICS Program */}
           <Card className="border-none shadow-sm bg-white overflow-hidden">
             <div className="h-1 bg-indigo-500" />
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2 font-black text-slate-800">
                 <Landmark className="w-5 h-5 text-indigo-600" />
-                Engagement by Program
+                Engagement by CICS Program
               </CardTitle>
             </CardHeader>
             <CardContent className="h-[350px]">
@@ -358,7 +362,7 @@ export default function CICSReportsPage() {
                     dataKey="name" 
                     type="category" 
                     width={80} 
-                    tick={{ fontSize: 11, fontVariant: 'small-caps', fontWeight: 900, fill: "#1E293B" }} 
+                    tick={{ fontSize: 12, fontWeight: 900, fill: "#1E293B" }} 
                     axisLine={false} 
                     tickLine={false} 
                   />
@@ -368,7 +372,10 @@ export default function CICSReportsPage() {
                   />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                     {stats.programData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.value > 0 ? '#6366f1' : '#e2e8f0'} />
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.value > 0 ? (index % 2 === 0 ? '#0C46A3' : '#47C1EB') : '#e2e8f0'} 
+                      />
                     ))}
                   </Bar>
                 </BarChart>
