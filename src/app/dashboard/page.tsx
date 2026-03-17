@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   LogOut, 
   Settings, 
@@ -28,11 +29,13 @@ import {
   Clock,
   AlertTriangle,
   DoorOpen,
-  Activity
+  Activity,
+  ShieldAlert
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const CICS_PROGRAMS = [
   "BSIT (Bachelor of Science in Information Technology)",
@@ -102,6 +105,7 @@ export default function LaboratoryDashboard() {
   }, []);
 
   const isAdmin = profile?.role === "Admin";
+  const isBlocked = !!profile?.isBlocked;
 
   const activeSessionsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -262,6 +266,16 @@ export default function LaboratoryDashboard() {
       </header>
 
       <main className="w-full px-6 md:px-12 py-10 flex-1 flex flex-col space-y-10">
+        {isBlocked && (
+          <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive mb-4">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle className="font-bold">Institutional Access Restricted</AlertTitle>
+            <AlertDescription className="font-medium">
+              Notice: Your account is in Read-Only mode. Please visit the CICS Office for faculty activation.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="border-none shadow-md bg-white border-l-4 border-blue-600">
             <CardContent className="p-6 flex items-center justify-between">
@@ -381,8 +395,14 @@ export default function LaboratoryDashboard() {
 
           <div className="lg:col-span-1 space-y-6">
             <div className="space-y-4 pt-14">
-              <Link href="/check-in/" className="block">
-                <Button className="w-full h-20 bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-xl flex items-center justify-start px-8 gap-5 group transition-all hover:scale-[1.02]">
+              <Link 
+                href={isBlocked ? "#" : "/check-in/"} 
+                className={cn("block", isBlocked && "cursor-not-allowed")}
+              >
+                <Button 
+                  disabled={isBlocked}
+                  className="w-full h-20 bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-xl flex items-center justify-start px-8 gap-5 group transition-all hover:scale-[1.02] disabled:opacity-50 disabled:grayscale"
+                >
                   <div className="p-3 bg-white/10 rounded-xl group-hover:bg-white/20">
                     <QrCode className="w-7 h-7" />
                   </div>

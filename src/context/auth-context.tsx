@@ -115,12 +115,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const isLoginPage = cleanPath === "/login" || cleanPath === "" || cleanPath === "/index.html";
 
     if (user && profile) {
-      if (profile.isBlocked && cleanPath !== "/access-denied") {
-        window.location.href = "/access-denied/";
-      } else if (isLoginPage) {
+      if (isLoginPage) {
         window.location.href = "/dashboard/";
       }
-    } else if (!user && !isLoginPage && cleanPath !== "/access-denied") {
+    } else if (!user && !isLoginPage) {
       window.location.href = "/login/";
     }
   }, [user, profile, loading, pathname]);
