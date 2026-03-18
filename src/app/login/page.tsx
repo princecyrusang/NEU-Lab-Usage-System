@@ -1,29 +1,27 @@
-
 "use client";
 
 import { useAuth } from "@/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Loader2, ArrowRight } from "lucide-react";
+import { ShieldCheck, Loader2, ArrowRight, School } from "lucide-react";
 import { useEffect, useState } from "react";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { useAuth as useFirebaseAuth } from "@/firebase";
 
 export default function LoginPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const firebaseAuth = useFirebaseAuth();
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
 
-  // If already logged in, jump to dashboard immediately
+  // Redirection is now handled by AuthContext, but we keep this as a local UI safeguard
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && profile && !authLoading) {
       setIsRedirecting(true);
-      window.location.href = "/dashboard/";
+      window.location.replace("/dashboard/");
     }
-  }, [user, authLoading]);
+  }, [user, profile, authLoading]);
 
-  // Fail-safe: If verifying takes too long (3.5s), show manual entry button
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!user) setShowManualEntry(true);
@@ -38,12 +36,11 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ 
         prompt: "select_account",
-        hd: "neu.edu.ph" // Hint to use institutional account
+        hd: "neu.edu.ph" 
       });
       
       await signInWithPopup(firebaseAuth, provider);
-      // Hard redirect to break session loops and ensure clean state
-      window.location.href = "/dashboard/";
+      // Let AuthContext handle the final redirect to ensure profile hydration
     } catch (error: any) {
       console.error("Login Error:", error);
       setIsRedirecting(false);
@@ -56,7 +53,7 @@ export default function LoginPage() {
       <div className="flex min-h-screen items-center justify-center bg-primary">
         <div className="text-center space-y-4">
           <Loader2 className="w-12 h-12 text-white animate-spin mx-auto" />
-          <p className="text-white font-medium">Entering NEU LAB ROOM...</p>
+          <p className="text-white font-medium">Entering NEU LAB SYSTEM...</p>
         </div>
       </div>
     );
@@ -66,13 +63,13 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center p-4 bg-primary">
       <Card className="w-full max-w-md shadow-2xl border-none">
         <CardHeader className="text-center space-y-4 pt-10">
-          <div className="mx-auto w-24 h-24 bg-primary/10 flex items-center justify-center rounded-2xl shadow-inner text-6xl">
-            🚪
+          <div className="mx-auto w-24 h-24 bg-primary/10 flex items-center justify-center rounded-2xl shadow-inner">
+            <School className="w-12 h-12 text-primary" />
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-3xl font-bold tracking-tight text-primary">NEU LAB ROOM</CardTitle>
+            <CardTitle className="text-3xl font-bold tracking-tight text-primary">NEU LAB SYSTEM</CardTitle>
             <CardDescription className="text-base font-bold text-muted-foreground uppercase tracking-widest">
-              Faculty Log System
+              INSTITUTIONAL LOG SYSTEM
             </CardDescription>
           </div>
         </CardHeader>

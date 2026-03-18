@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth } from "@/context/auth-context";
@@ -30,7 +29,8 @@ import {
   AlertTriangle,
   DoorOpen,
   Activity,
-  ShieldAlert
+  ShieldAlert,
+  School
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -62,7 +62,6 @@ function LiveTimer({ startTime, onAutoClose }: LiveTimerProps) {
       const now = new Date();
       const diffMs = now.getTime() - start.getTime();
       
-      // Auto-close logic: 3 hours = 10,800,000 ms
       if (diffMs >= 10800000) {
         onAutoClose();
         return;
@@ -72,8 +71,7 @@ function LiveTimer({ startTime, onAutoClose }: LiveTimerProps) {
       const diffMins = Math.floor((diffMs % 3600000) / 60000);
       const diffSecs = Math.floor((diffMs % 60000) / 1000);
       
-      setIsWarning(diffHrs >= 2); // Warn at 2 hours
-      
+      setIsWarning(diffHrs >= 2);
       setElapsed(`${diffHrs}h ${diffMins}m ${diffSecs}s`);
     };
 
@@ -141,9 +139,7 @@ export default function LaboratoryDashboard() {
       const start = session.startTime?.toDate ? session.startTime.toDate() : new Date(session.startTime);
       const now = new Date();
       const diffMs = now.getTime() - start.getTime();
-      const diffHrs = Math.floor(diffMs / 3600000);
-      const diffMins = Math.floor((diffMs % 3600000) / 60000);
-      const durationStr = isAuto ? "3h 0m (Auto-Closed)" : `${diffHrs}h ${diffMins}m`;
+      const durationStr = isAuto ? "3h 0m (Auto-Closed)" : `${Math.floor(diffMs / 3600000)}h ${Math.floor((diffMs % 3600000) / 60000)}m`;
 
       if (session.logId) {
         const logRef = doc(firestore, "lab_usage", session.logId);
@@ -162,15 +158,14 @@ export default function LaboratoryDashboard() {
         title: isAuto ? "Session Auto-Closed" : "Session Ended",
         description: isAuto 
           ? `Laboratory ${session.roomId} reached the 3-hour hard limit.`
-          : `Laboratory ${session.roomId} is now available for the next faculty member.`,
+          : `Laboratory ${session.roomId} is now available.`,
         variant: isAuto ? "destructive" : "default"
       });
     } catch (error: any) {
-      console.error("Stop session error:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Could not sync session status to institutional records."
+        description: "Could not sync session status."
       });
     } finally {
       setIsStopping(null);
@@ -206,19 +201,19 @@ export default function LaboratoryDashboard() {
     <div className="min-h-screen bg-[#F1F5F9] flex flex-col w-full max-w-none">
       {!profile.isSetupComplete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4">
-          <Card className="w-full max-w-lg shadow-2xl border-none overflow-visible">
+          <Card className="w-full max-w-lg shadow-2xl border-none">
             <CardHeader className="space-y-1 pb-8 border-b bg-accent/30 rounded-t-xl">
               <CardTitle className="text-2xl font-bold text-primary">Welcome, {profile.fullName}!</CardTitle>
               <CardDescription>Select your CICS Degree Program to continue.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-8 space-y-6 overflow-visible">
+            <CardContent className="pt-8 space-y-6">
               <div className="space-y-4">
                 <Label className="font-bold text-slate-700">CICS Program</Label>
                 <Select onValueChange={setSelectedProgram} value={selectedProgram}>
                   <SelectTrigger className="w-full py-8 text-lg border-2">
                     <SelectValue placeholder="Choose program..." />
                   </SelectTrigger>
-                  <SelectContent className="z-[150]">
+                  <SelectContent>
                     {CICS_PROGRAMS.map((o) => (
                       <SelectItem key={o} value={o}>{o}</SelectItem>
                     ))}
@@ -241,21 +236,21 @@ export default function LaboratoryDashboard() {
         <div className="w-full px-6 md:px-12 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <div className="bg-white/10 p-2 rounded-xl">
-              <Database className="w-7 h-7 text-cyan-300" />
+              <School className="w-7 h-7 text-cyan-300" />
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tight leading-none uppercase">CICS LAB COMMAND</h1>
+              <h1 className="text-xl font-black tracking-tight leading-none uppercase">NEU LAB SYSTEM</h1>
               <p className="text-[10px] font-black text-cyan-400 mt-1 uppercase tracking-widest">Informatics & Computing Studies</p>
             </div>
           </div>
           <div className="flex items-center gap-6">
              <div className="hidden sm:flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/10">
                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest">CICS Systems Online</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Systems Online</span>
              </div>
              <Button 
                 type="button"
-                onClick={() => signOut(auth).then(() => window.location.href = '/')} 
+                onClick={() => signOut(auth).then(() => window.location.href = '/login/')} 
                 className="bg-white text-primary hover:bg-red-50 hover:text-red-600 transition-colors font-bold flex items-center gap-2 px-4 h-10 rounded-md shadow-sm cursor-pointer"
              >
                <LogOut className="w-4 h-4" />
@@ -280,7 +275,7 @@ export default function LaboratoryDashboard() {
           <Card className="border-none shadow-md bg-white border-l-4 border-blue-600">
             <CardContent className="p-6 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">CICS Total Usage</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Total Usage</p>
                 <p className="text-3xl font-black text-slate-900">{stats.totalHistory}</p>
               </div>
               <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><History className="w-6 h-6" /></div>
@@ -304,8 +299,7 @@ export default function LaboratoryDashboard() {
               <div className="p-3 bg-cyan-50 text-cyan-600 rounded-xl"><Activity className="w-6 h-6" /></div>
             </CardContent>
           </Card>
-          <Card className="border-none shadow-md bg-[#0F172A] text-white overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" />
+          <Card className="border-none shadow-md bg-[#0F172A] text-white relative">
             <CardContent className="p-6 flex items-center gap-4 relative z-10">
               <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center text-cyan-400">
                 <UserCircle2 className="w-7 h-7" />
@@ -313,7 +307,7 @@ export default function LaboratoryDashboard() {
               <div className="overflow-hidden">
                 <p className="text-sm font-black truncate">{profile.fullName}</p>
                 <Badge variant="outline" className="text-[9px] font-black uppercase tracking-tighter text-cyan-400 border-cyan-400/30 px-1.5 h-4 mt-1">
-                  {isAdmin ? "System Administrator" : profile.collegeOffice || "CICS Member"}
+                  {isAdmin ? "Administrator" : profile.collegeOffice || "CICS Member"}
                 </Badge>
               </div>
             </CardContent>
@@ -322,16 +316,10 @@ export default function LaboratoryDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
           <div className="lg:col-span-3 space-y-6">
-            <div className="flex items-center justify-between">
-               <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
-                 <Database className="w-8 h-8 text-primary" />
-                 CICS Lab Availability Map
-               </h2>
-               <div className="bg-white px-4 py-2 rounded-xl shadow-sm border text-[10px] font-black uppercase text-slate-500 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500" />
-                  Real-Time Synchronization
-               </div>
-            </div>
+            <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+              <Database className="w-8 h-8 text-primary" />
+              Lab Availability Map
+            </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
               {LAB_ROOMS.map((roomName) => {
@@ -343,11 +331,9 @@ export default function LaboratoryDashboard() {
                   <Card key={roomName} className={`bg-white border-none shadow-lg transition-all duration-300 relative group ${isOccupied ? 'ring-2 ring-destructive/20' : 'hover:scale-[1.02]'}`}>
                     <div className={`h-2 w-full rounded-t-lg ${isOccupied ? 'bg-destructive' : 'bg-green-500'}`} />
                     <CardHeader className="pb-3 pt-5">
-                      <div className="flex flex-col gap-1">
-                        <CardTitle className="text-base font-black text-slate-800 truncate">{roomName}</CardTitle>
-                        <div className={`w-fit px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${isOccupied ? 'bg-destructive/10 text-destructive' : 'bg-green-100 text-green-700'}`}>
-                          {isOccupied ? 'Occupied' : 'Available'}
-                        </div>
+                      <CardTitle className="text-base font-black text-slate-800 truncate">{roomName}</CardTitle>
+                      <div className={`w-fit px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${isOccupied ? 'bg-destructive/10 text-destructive' : 'bg-green-100 text-green-700'}`}>
+                        {isOccupied ? 'Occupied' : 'Available'}
                       </div>
                     </CardHeader>
                     <CardContent className="pb-6">
@@ -359,7 +345,6 @@ export default function LaboratoryDashboard() {
                             </div>
                             <div className="flex-1 overflow-hidden">
                               <p className="text-[10px] font-black text-slate-900 truncate">{session.fullName}</p>
-                              <p className="text-[9px] font-bold text-muted-foreground truncate">{session.collegeOffice}</p>
                             </div>
                           </div>
                           <div className="pt-3 border-t flex flex-col gap-3">
@@ -382,8 +367,8 @@ export default function LaboratoryDashboard() {
                         </div>
                       ) : (
                         <div className="py-10 text-center flex flex-col items-center">
-                          <DoorOpen className="w-12 h-12 text-slate-100 group-hover:text-green-500/20 transition-all duration-500" />
-                          <p className="text-[9px] mt-4 font-black uppercase text-slate-300 tracking-[0.2em]">Vacant</p>
+                          <DoorOpen className="w-12 h-12 text-slate-100" />
+                          <p className="text-[9px] mt-4 font-black uppercase text-slate-300">Vacant</p>
                         </div>
                       )}
                     </CardContent>
@@ -401,21 +386,21 @@ export default function LaboratoryDashboard() {
               >
                 <Button 
                   disabled={isBlocked}
-                  className="w-full h-20 bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-xl flex items-center justify-start px-8 gap-5 group transition-all hover:scale-[1.02] disabled:opacity-50 disabled:grayscale"
+                  className="w-full h-20 bg-primary text-white rounded-2xl shadow-xl flex items-center justify-start px-8 gap-5 group transition-all hover:scale-[1.02]"
                 >
-                  <div className="p-3 bg-white/10 rounded-xl group-hover:bg-white/20">
+                  <div className="p-3 bg-white/10 rounded-xl">
                     <QrCode className="w-7 h-7" />
                   </div>
                   <div className="text-left">
                     <p className="text-lg font-black">Scan ID to Log</p>
-                    <p className="text-[10px] font-bold opacity-70">Begin CICS Lab Session</p>
+                    <p className="text-[10px] font-bold opacity-70">Begin Lab Session</p>
                   </div>
                 </Button>
               </Link>
 
               <div className="grid grid-cols-1 gap-4">
                 <Link href="/profile/" className="block">
-                  <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4 group">
+                  <Button variant="outline" className="w-full h-16 border-none bg-white text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4">
                     <div className="p-2 bg-blue-50 text-primary rounded-lg"><Settings className="w-5 h-5" /></div>
                     <p className="text-sm font-black">Profile Management</p>
                   </Button>
@@ -424,13 +409,13 @@ export default function LaboratoryDashboard() {
                 {isAdmin && (
                   <>
                     <Link href="/history/" className="block">
-                      <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4 group">
+                      <Button variant="outline" className="w-full h-16 border-none bg-white text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4">
                         <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><History className="w-5 h-5" /></div>
                         <p className="text-sm font-black">CICS Usage Logs</p>
                       </Button>
                     </Link>
                     <Link href="/admin/" className="block">
-                      <Button variant="outline" className="w-full h-16 border-none bg-white hover:bg-slate-50 text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4 group">
+                      <Button variant="outline" className="w-full h-16 border-none bg-white text-slate-900 rounded-2xl shadow-sm flex items-center justify-start px-6 gap-4">
                         <div className="p-2 bg-destructive/5 text-destructive rounded-lg"><ShieldCheck className="w-5 h-5" /></div>
                         <p className="text-sm font-black">Admin Command</p>
                       </Button>
@@ -438,16 +423,6 @@ export default function LaboratoryDashboard() {
                   </>
                 )}
               </div>
-            </div>
-
-            <div className="p-8 bg-[#0F172A] rounded-3xl text-white space-y-4 shadow-2xl relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" />
-               <div className="flex items-center gap-2 text-cyan-400 font-black text-[10px] uppercase tracking-widest relative z-10">
-                  <Clock className="w-4 h-4" /> CICS POLICY
-               </div>
-               <p className="text-xs leading-relaxed text-slate-400 relative z-10 font-medium">
-                  Laboratory sessions are strictly capped at 3 hours. Please ensure logs are finalized to maintain accurate departmental metrics.
-               </p>
             </div>
           </div>
         </div>

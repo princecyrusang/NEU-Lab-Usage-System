@@ -17,10 +17,14 @@ export function initializeFirebase() {
   }
   
   const auth = getAuth(app);
+  
   // CRITICAL: Ensure the session survives page refreshes and browser restarts
-  setPersistence(auth, browserLocalPersistence).catch(err => {
-    console.error("Firebase persistence error:", err);
-  });
+  // SSR Safeguard: Only execute persistence logic on the client side.
+  if (typeof window !== 'undefined') {
+    setPersistence(auth, browserLocalPersistence).catch(err => {
+      console.error("Firebase persistence error:", err);
+    });
+  }
 
   return {
     firebaseApp: app,
